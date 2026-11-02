@@ -168,6 +168,7 @@ fn synthetic_scenario_fixture_replays_against_the_contract() {
 fn stream_golden_matches_real_emitted_events() {
     use soroban_sdk::testutils::Ledger as _;
     use soroban_sdk::xdr::{Limits, WriteXdr};
+    use soroban_sdk::{IntoVal, TryFromVal};
     let f = setup_empty();
     let mut entries: Vec<String> = Vec::new();
     let mut ledger = 100u32;
@@ -235,9 +236,23 @@ fn stream_golden_matches_real_emitted_events() {
     f.escrow.unpause_pool(&1);
     capture(&f, "unpause");
 
+    // Recorded view-function results at the end of the scenario (what an RPC simulate returns).
+    let to_b64 = |v: soroban_sdk::Val| {
+        soroban_sdk::xdr::ScVal::try_from_val(&f.env, &v)
+            .unwrap()
+            .to_xdr_base64(Limits::none())
+            .unwrap()
+    };
+    let t_totals = to_b64(f.escrow.get_totals(&1).into_val(&f.env));
+    let t_r1 = to_b64(f.escrow.get_right(&1).into_val(&f.env));
+    let t_r2 = to_b64(f.escrow.get_right(&2).into_val(&f.env));
+    let views = format!(
+        "{{ \"get_totals(1)\": \"{t_totals}\", \"get_right(1)\": \"{t_r1}\", \"get_right(2)\": \"{t_r2}\" }}"
+    );
     let doc = format!(
-        "{{\n  \"schema\": \"torrent.event-stream\",\n  \"abiVersion\": 1,\n  \"networkPassphrase\": \"{PASSPHRASE}\",\n  \"contractId\": \"{}\",\n  \"note\": \"Real events emitted by torrent-escrow in the Soroban test host with synthetic accounts. NOT from Testnet.\",\n  \"events\": [\n{}\n  ]\n}}\n",
+        "{{\n  \"schema\": \"torrent.event-stream\",\n  \"abiVersion\": 1,\n  \"networkPassphrase\": \"{PASSPHRASE}\",\n  \"contractId\": \"{}\",\n  \"note\": \"Real events emitted by torrent-escrow in the Soroban test host with synthetic accounts. NOT from Testnet.\",\n  \"views\": {},\n  \"events\": [\n{}\n  ]\n}}\n",
         f.escrow_addr.to_string(),
+        views,
         entries.join(",\n")
     );
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bindings/stream.v1.json");
