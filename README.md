@@ -4,7 +4,31 @@
 
 > Torrent — Ownership of when money becomes available.
 
-**Status: repository scaffold / not implemented.** This repo is one of **exactly four meaningful independent codebases** in the Torrent Stellar-native project. It is not a placeholder created merely to increase Drips Wave submissions.
+**Status: M0 + M1 complete in the Soroban test host; NOT deployed, NOT audited.** This repo is one of **exactly four meaningful independent codebases** in the Torrent Stellar-native project. It is not a placeholder created merely to increase Drips Wave submissions.
+
+## Honest status
+| Item | State |
+|---|---|
+| `torrent-escrow` contract (pools, membership, deposit, issue, transfer, claim, withdraw-unreserved, pause) | implemented |
+| Tests: unit + failure paths, event golden, ABI surface, property test of the backing invariant | passing (`./scripts/check.sh`) |
+| Wasm compile smoke check (`wasm32v1-none`) | passes, but is **not** a deployable build (needs `stellar contract build`, stellar-cli >= 25.2) |
+| Testnet deployment / transaction hashes | **none** (no network or stellar-cli in the authoring sandbox) |
+| Security audit, Mainnet, real funds | **no** / **no** / **no** |
+
+All tests run against the real contract in the Soroban test host with a Stellar Asset Contract token and synthetic accounts. Nothing is mocked inside the contract.
+
+## Public boundary (versioned)
+`bindings/abi.v1.json` (functions, auth, error codes), `bindings/events.v1.json` (event topics/data, shared with `torrent-indexer`), `bindings/scenario.v1.json` (synthetic script). ABI version 1. Design record: `docs/adr/0001-escrow-contract-design.md`.
+
+Core invariant: `reserved <= funded - claimed - withdrawn` after every call; rights can only be issued against escrowed tokens; old owners cannot claim after a transfer; nothing is claimable before maturity or twice.
+
+## Local startup
+```bash
+rustup target add wasm32v1-none
+./scripts/check.sh      # fmt, clippy -D warnings, tests, wasm smoke build
+cargo test --all        # tests only
+```
+Nothing to shut down (no services). Deployment steps: `deployments/README.md`.
 
 ## Owns
 Escrow of backed assets, immutable fully-funded payout rights, transfer restrictions, schedule enforcement, claims, authorized amendments
