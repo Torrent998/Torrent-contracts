@@ -135,3 +135,90 @@ proptest! {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+enum OwnOp {
+    Issue { to: usize, amount: i128 },
+    Propose { right: usize, to: usize },
+    Accept { transfer: usize },
+    Cancel { transfer: usize },
+    Claim { right: usize },
+    Advance { secs: u64 },
+}
+
+fn own_op() -> impl Strategy<Value = OwnOp> {
+    prop_oneof![
+        3 => (0usize..3, 1i128..300).prop_map(|(to, amount)| OwnOp::Issue { to, amount }),
+        4 => (0usize..6, 0usize..3).prop_map(|(right, to)| OwnOp::Propose { right, to }),
+        4 => (0usize..10).prop_map(|transfer| OwnOp::Accept { transfer }),
+        1 => (0usize..10).prop_map(|transfer| OwnOp::Cancel { transfer }),
+        2 => (0usize..6).prop_map(|right| OwnOp::Claim { right }),
+        2 => (0u64..4 * 86_400).prop_map(|secs| OwnOp::Advance { secs }),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 32, ..ProptestConfig::default() })]
+
+    /// Ownership model: a right's owner changes ONLY through a completed transfer to its named
+    /// recipient, there is always exactly one owner who is a pool member, and terminal states
+    /// (claimed right, completed/cancelled transfer) never revert.
+    #[test]
+    fn ownership_only_moves_through_completed_transfers(ops in prop::collection::vec(own_op(), 1..40)) {
+        use torrent_escrow::TransferStatus;
+        let f = setup();
+        f.env.cost_estimate().budget().reset_unlimited();
+        f.fund(100_000);
+        let members: Vec<Address> = vec![f.alice.clone(), f.bob.clone(), f.carol.clone()];
+        let mut owners: Vec<Address> = Vec::new();   // model: right id (1-based) -> owner
+        let mut transfers: Vec<(u64, Address)> = Vec::new(); // (right id, recipient) per transfer id
+        let mut done: std::collections::HashMap<u64, TransferStatus> = Default::default();
+
+        for o in ops {
+            let now = f.env.ledger().timestamp();
+            match o {
+                OwnOp::Issue { to, amount } => {
+                    if let Ok(Ok(_)) = f.escrow.try_issue_right(&f.pool_id, &members[to], &amount, &(now + 86_400), &hash(&f.env, 1)) {
+                        owners.push(members[to].clone());
+                    }
+                }
+                OwnOp::Propose { right, to } if !owners.is_empty() => {
+                    let id = (right % owners.len()) as u64 + 1;
+                    if let Ok(Ok(_)) = f.escrow.try_propose_transfer(&id, &members[to], &(now + 3 * 86_400)) {
+                        transfers.push((id, members[to].clone()));
+                    }
+                }
+                OwnOp::Accept { transfer } if !transfers.is_empty() => {
+                    let idx = transfer % transfers.len();
+                    let (rid, to) = transfers[idx].clone();
+                    if let Ok(Ok(_)) = f.escrow.try_accept_transfer(&(idx as u64 + 1)) {
+                        owners[(rid - 1) as usize] = to; // the only way the model owner moves
+                    }
+                }
+                OwnOp::Cancel { transfer } if !transfers.is_empty() => {
+                    let _ = f.escrow.try_cancel_transfer(&((transfer % transfers.len()) as u64 + 1));
+                }
+                OwnOp::Claim { right } if !owners.is_empty() => {
+                    let id = (right % owners.len()) as u64 + 1;
+                    let _ = f.escrow.try_claim(&id, &owners[(id - 1) as usize]);
+                }
+                OwnOp::Advance { secs } => f.advance(secs),
+                _ => {}
+            }
+            for (i, model_owner) in owners.iter().enumerate() {
+                let r = f.escrow.get_right(&(i as u64 + 1));
+                prop_assert_eq!(&r.owner, model_owner, "owner diverged from completed-transfer history");
+                prop_assert!(f.escrow.is_member(&f.pool_id, &r.owner));
+            }
+            for (i, _) in transfers.iter().enumerate() {
+                let t = f.escrow.get_transfer(&(i as u64 + 1));
+                if let Some(prev) = done.get(&t.transfer_id) {
+                    if *prev != TransferStatus::Pending { prop_assert_eq!(*prev, t.status, "terminal transfer status changed"); }
+                }
+                done.insert(t.transfer_id, t.status);
+            }
+            let t = f.escrow.get_totals(&f.pool_id);
+            prop_assert!(t.reserved <= t.funded - t.claimed - t.withdrawn);
+        }
+    }
+}
