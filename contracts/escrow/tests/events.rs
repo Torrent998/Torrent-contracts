@@ -159,3 +159,94 @@ fn synthetic_scenario_fixture_replays_against_the_contract() {
         }
     }
 }
+
+/// Records the REAL emitted events of the synthetic scenario as `bindings/stream.v1.json`
+/// (base64 XDR topics/value). `torrent-indexer` decodes this exact stream in its tests, so the
+/// two repos are checked against the same bytes, not against each other's descriptions.
+/// Regenerate with `UPDATE_GOLDEN=1 cargo test --test events stream`.
+#[test]
+fn stream_golden_matches_real_emitted_events() {
+    use soroban_sdk::testutils::Ledger as _;
+    use soroban_sdk::xdr::{Limits, WriteXdr};
+    let f = setup_empty();
+    let mut entries: Vec<String> = Vec::new();
+    let mut ledger = 100u32;
+    let mut capture = |f: &Fixture, step: &str| {
+        ledger += 1;
+        let ts = f.env.ledger().timestamp();
+        for (i, e) in f
+            .env
+            .events()
+            .all()
+            .filter_by_contract(&f.escrow_addr)
+            .events()
+            .iter()
+            .enumerate()
+        {
+            let ContractEventBody::V0(b) = &e.body;
+            let topics: Vec<String> = b
+                .topics
+                .iter()
+                .map(|t| format!("\"{}\"", t.to_xdr_base64(Limits::none()).unwrap()))
+                .collect();
+            entries.push(format!(
+                "    {{ \"step\": \"{step}\", \"ledger\": {ledger}, \"closeTime\": {ts}, \"eventIndex\": {i}, \"topics\": [{}], \"value\": \"{}\" }}",
+                topics.join(", "),
+                b.data.to_xdr_base64(Limits::none()).unwrap()
+            ));
+        }
+        f.env.ledger().with_mut(|l| l.sequence_number = ledger + 1);
+    };
+    f.env.ledger().with_mut(|l| l.sequence_number = 101);
+    f.escrow
+        .create_pool(&f.controller, &f.token.address, &f.policy);
+    capture(&f, "create_pool");
+    for (n, who) in [("join_alice", &f.alice), ("join_bob", &f.bob)] {
+        f.escrow.allow_member(&1, who);
+        f.escrow.join_pool(&1, who, &f.policy);
+        capture(&f, n);
+    }
+    f.escrow.deposit(&1, &f.controller, &1000);
+    capture(&f, "deposit");
+    let r = f
+        .escrow
+        .issue_right(&1, &f.alice, &600, &(START + 30 * DAY), &f.policy);
+    capture(&f, "issue_right");
+    let t = f.escrow.propose_transfer(&r, &f.bob, &(START + 5 * DAY));
+    capture(&f, "propose_transfer");
+    f.escrow.accept_transfer(&t);
+    capture(&f, "accept_transfer");
+    f.advance(30 * DAY);
+    f.escrow.claim(&r, &f.bob);
+    capture(&f, "claim");
+    // Second right to exercise cancel + withdraw + pause events.
+    let r2 = f
+        .escrow
+        .issue_right(&1, &f.alice, &100, &(START + 90 * DAY), &f.policy);
+    capture(&f, "issue_right_2");
+    let t2 = f.escrow.propose_transfer(&r2, &f.bob, &(START + 40 * DAY));
+    capture(&f, "propose_transfer_2");
+    f.escrow.cancel_transfer(&t2);
+    capture(&f, "cancel_transfer_2");
+    f.escrow.withdraw_unreserved(&1, &f.controller, &300);
+    capture(&f, "withdraw_unreserved");
+    f.escrow.pause_pool(&1);
+    capture(&f, "pause");
+    f.escrow.unpause_pool(&1);
+    capture(&f, "unpause");
+
+    let doc = format!(
+        "{{\n  \"schema\": \"torrent.event-stream\",\n  \"abiVersion\": 1,\n  \"networkPassphrase\": \"{PASSPHRASE}\",\n  \"contractId\": \"{}\",\n  \"note\": \"Real events emitted by torrent-escrow in the Soroban test host with synthetic accounts. NOT from Testnet.\",\n  \"events\": [\n{}\n  ]\n}}\n",
+        f.escrow_addr.to_string(),
+        entries.join(",\n")
+    );
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../bindings/stream.v1.json");
+    if std::env::var("UPDATE_GOLDEN").is_ok() {
+        std::fs::write(path, &doc).unwrap();
+    }
+    let on_disk = std::fs::read_to_string(path).expect("run with UPDATE_GOLDEN=1 once");
+    assert_eq!(
+        on_disk, doc,
+        "bindings/stream.v1.json is stale; regenerate with UPDATE_GOLDEN=1"
+    );
+}

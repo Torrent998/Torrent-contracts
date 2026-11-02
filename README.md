@@ -18,7 +18,7 @@
 All tests run against the real contract in the Soroban test host with a Stellar Asset Contract token and synthetic accounts. Nothing is mocked inside the contract.
 
 ## Public boundary (versioned)
-`bindings/abi.v1.json` (functions, auth, error codes), `bindings/events.v1.json` (event topics/data, shared with `torrent-indexer`), `bindings/scenario.v1.json` (synthetic script). ABI version 1. Design record: `docs/adr/0001-escrow-contract-design.md`.
+`bindings/abi.v1.json` (functions, auth, error codes), `bindings/events.v1.json` (event topics/data, shared with `torrent-indexer`), `bindings/scenario.v1.json` (synthetic script), `bindings/stream.v1.json` (the real events emitted by that script as base64 XDR; `torrent-indexer` decodes these exact bytes). ABI version 1. Design record: `docs/adr/0001-escrow-contract-design.md`.
 
 Core invariant: `reserved <= funded - claimed - withdrawn` after every call; rights can only be issued against escrowed tokens; old owners cannot claim after a transfer; nothing is claimable before maturity or twice.
 

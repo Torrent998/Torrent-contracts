@@ -9,6 +9,7 @@ use soroban_sdk::{
 use torrent_escrow::{TorrentEscrow, TorrentEscrowClient};
 
 pub const START: u64 = 1_000_000;
+pub const PASSPHRASE: &str = "Test SDF Network ; September 2015";
 pub const DAY: u64 = 86_400;
 
 pub struct Fixture<'a> {
@@ -48,6 +49,10 @@ fn build<'a>(with_pool: bool) -> Fixture<'a> {
     let env = Env::default();
     env.mock_all_auths();
     set_time(&env, START);
+    let nid = env
+        .crypto()
+        .sha256(&soroban_sdk::Bytes::from_slice(&env, PASSPHRASE.as_bytes()));
+    env.ledger().set_network_id(nid.to_array());
     let sac_admin = Address::generate(&env);
     let sac = env.register_stellar_asset_contract_v2(sac_admin);
     let token = TokenClient::new(&env, &sac.address());
