@@ -1,0 +1,224 @@
+{
+  "schema": "torrent.contract-abi",
+  "abiVersion": 1,
+  "contract": "torrent-escrow",
+  "sdk": "soroban-sdk 29.0.1",
+  "status": "Hand-maintained mirror of the #[contractimpl]; verified by tests/abi_surface.rs. Not generated from a deployed wasm.",
+  "functions": [
+    {
+      "name": "abi_version",
+      "args": {},
+      "returns": "u32",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "create_pool",
+      "args": {
+        "controller": "address",
+        "token": "address",
+        "membership_policy_hash": "bytes32"
+      },
+      "returns": "u64 pool_id",
+      "auth": "controller",
+      "notes": ""
+    },
+    {
+      "name": "allow_member",
+      "args": {
+        "pool_id": "u64",
+        "member": "address"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Only before first deposit (MembershipFrozen after)"
+    },
+    {
+      "name": "join_pool",
+      "args": {
+        "pool_id": "u64",
+        "member": "address",
+        "signed_policy_hash": "bytes32"
+      },
+      "returns": "void",
+      "auth": "member",
+      "notes": "Hash must equal pool membership_policy_hash"
+    },
+    {
+      "name": "deposit",
+      "args": {
+        "pool_id": "u64",
+        "from": "address",
+        "amount": "i128"
+      },
+      "returns": "u64 receipt_id",
+      "auth": "from",
+      "notes": "from = controller or joined member; fails closed if token moves a different amount"
+    },
+    {
+      "name": "issue_right",
+      "args": {
+        "pool_id": "u64",
+        "owner": "address",
+        "amount": "i128",
+        "maturity": "u64 (unix seconds)",
+        "policy_hash": "bytes32"
+      },
+      "returns": "u64 right_id",
+      "auth": "controller",
+      "notes": "Rejects if reserved would exceed funded-claimed-withdrawn"
+    },
+    {
+      "name": "propose_transfer",
+      "args": {
+        "right_id": "u64",
+        "new_owner": "address",
+        "expiry": "u64"
+      },
+      "returns": "u64 transfer_id",
+      "auth": "current owner",
+      "notes": "One open proposal per right"
+    },
+    {
+      "name": "cancel_transfer",
+      "args": {
+        "transfer_id": "u64"
+      },
+      "returns": "void",
+      "auth": "proposer (from)",
+      "notes": ""
+    },
+    {
+      "name": "accept_transfer",
+      "args": {
+        "transfer_id": "u64"
+      },
+      "returns": "void",
+      "auth": "recipient (to)",
+      "notes": "Single use; rejects expired/stale"
+    },
+    {
+      "name": "claim",
+      "args": {
+        "right_id": "u64",
+        "recipient": "address"
+      },
+      "returns": "void (token transfer)",
+      "auth": "current owner",
+      "notes": "At/after maturity, exactly once; allowed while paused"
+    },
+    {
+      "name": "withdraw_unreserved",
+      "args": {
+        "pool_id": "u64",
+        "to": "address",
+        "amount": "i128"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Only value not reserved by any issued right"
+    },
+    {
+      "name": "pause_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Blocks deposit/issue/transfer/withdraw; never claims"
+    },
+    {
+      "name": "unpause_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": ""
+    },
+    {
+      "name": "get_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "PoolConfig",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_totals",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "EscrowTotals {funded,reserved,claimed,withdrawn}",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_unreserved",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "i128",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_right",
+      "args": {
+        "right_id": "u64"
+      },
+      "returns": "PayoutRight",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_transfer",
+      "args": {
+        "transfer_id": "u64"
+      },
+      "returns": "TransferApproval",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "is_member",
+      "args": {
+        "pool_id": "u64",
+        "who": "address"
+      },
+      "returns": "bool",
+      "auth": "none",
+      "notes": ""
+    }
+  ],
+  "errors": {
+    "1": "PoolNotFound",
+    "2": "RightNotFound",
+    "3": "TransferNotFound",
+    "4": "NotAllowed",
+    "5": "NotMember",
+    "6": "AlreadyMember",
+    "7": "PolicyMismatch",
+    "8": "InvalidAmount",
+    "9": "PoolPaused",
+    "10": "InsufficientBacking",
+    "11": "MaturityInPast",
+    "12": "NotMatured",
+    "13": "AlreadyClaimed",
+    "14": "RightNotActive",
+    "15": "SameOwner",
+    "16": "InvalidExpiry",
+    "17": "TransferPending",
+    "18": "TransferNotPending",
+    "19": "TransferExpired",
+    "20": "StaleTransfer",
+    "21": "NotFunded",
+    "22": "Overflow",
+    "23": "DepositMismatch",
+    "24": "MembershipFrozen",
+    "25": "AlreadyPaused",
+    "26": "NotPaused"
+  },
+  "invariant": "reserved >= 0 and reserved <= funded - claimed - withdrawn after every call"
+}
