@@ -10,7 +10,9 @@
 | Item | State |
 |---|---|
 | `torrent-escrow` contract (pools, membership, deposit, issue, transfer, claim, withdraw-unreserved, pause) | implemented |
-| Tests: unit + failure paths, event golden, ABI surface, property test of the backing invariant | passing (`./scripts/check.sh`) |
+| Tests: unit + failure paths, per-signer authorization, fee-on-transfer token rejection, event golden, ABI surface, 2 property tests (backing invariant; ownership model) | passing (`./scripts/check.sh`, 36 tests) |
+| CI doc sync: `scripts/check-bindings.sh` regenerates the golden stream from the real contract and fails on any diff in `bindings/` | in CI workflow |
+| Deployment scripts for stellar-cli (`scripts/build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | written, **never run** |
 | Wasm compile smoke check (`wasm32v1-none`) | passes, but is **not** a deployable build (needs `stellar contract build`, stellar-cli >= 25.2) |
 | Testnet deployment / transaction hashes | **none** (no network or stellar-cli in the authoring sandbox) |
 | Security audit, Mainnet, real funds | **no** / **no** / **no** |

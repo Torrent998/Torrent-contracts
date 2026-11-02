@@ -3,7 +3,9 @@
 **No deployments exist.** M1 was proven inside the Soroban test host only (see README status).
 When a Testnet deployment is made, record it in `testnet.json` as
 `{ "network", "networkPassphrase", "contractId", "wasmHash", "deployTx", "deployLedger", "abiVersion", "gitSha" }`
-so `torrent-indexer` can set its start ledger. Deploy with a deployable build:
+so `torrent-indexer` can set its start ledger. Scripts (documented, **never executed** by the authors: no stellar-cli or network in the sandbox): `scripts/build.sh`, `scripts/deploy-testnet.sh`, `scripts/smoke-testnet.sh`.
+
+Manual equivalent:
 
 ```bash
 stellar contract build            # stellar-cli >= 25.2.0 (spec shaking); not available in the authoring sandbox

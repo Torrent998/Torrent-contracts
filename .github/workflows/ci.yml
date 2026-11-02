@@ -13,6 +13,8 @@ jobs:
           targets: wasm32v1-none
       - uses: Swatinem/rust-cache@v2
       - run: ./scripts/check.sh
+      - name: ABI / event / golden-stream docs are in sync with the contract
+        run: ./scripts/check-bindings.sh
   audit:
     runs-on: ubuntu-latest
     steps:
