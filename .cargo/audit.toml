@@ -1,0 +1,12 @@
+# cargo-audit configuration (read by `cargo audit` in CI).
+
+[advisories]
+ignore = [
+  # RUSTSEC-2026-0387: timing variability in crypto-bigint 0.5.5.
+  # Pulled in only through soroban-env-host (k256/p256 -> elliptic-curve), the native
+  # host used by `soroban-sdk` testutils when running tests. It is NOT compiled into the
+  # contract: `cargo tree -i crypto-bigint --target wasm32v1-none` is empty, and the
+  # on-chain host is the network's, not ours. No stable soroban-sdk release depends on a
+  # fixed version yet (29.0.1 is the latest stable). Remove this entry when upgrading.
+  "RUSTSEC-2026-0387",
+]
