@@ -1,69 +1,140 @@
-<img src="./brand/icon.svg" alt="Torrent logo" width="144" />
+<div align="center">
 
-# torrent-contracts
+<img src="./brand/icon.svg" alt="Torrent logo" width="96" height="96" />
 
-> Torrent — Ownership of when money becomes available.
+# Torrent-contracts
 
-**Status: M0 + M1 complete in the Soroban test host; NOT deployed, NOT audited.** This repo is one of **exactly four meaningful independent codebases** in the Torrent Stellar-native project. It is not a placeholder created merely to increase Drips Wave submissions.
+**Soroban escrow pools and fully backed payout rights for Torrent savings circles.**
 
-## Honest status
-| Item | State |
-|---|---|
-| `torrent-escrow` contract (pools, membership, deposit, issue, transfer, claim, withdraw-unreserved, pause) | implemented |
-| Tests: unit + failure paths, per-signer authorization, fee-on-transfer token rejection, event golden, ABI surface, 2 property tests (backing invariant; ownership model) | passing (`./scripts/check.sh`, 36 tests) |
-| CI doc sync: `scripts/check-bindings.sh` regenerates the golden stream from the real contract and fails on any diff in `bindings/` | in CI workflow |
-| Deployment scripts for stellar-cli (`scripts/build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | written, **never run** |
-| Wasm compile smoke check (`wasm32v1-none`) | passes, but is **not** a deployable build (needs `stellar contract build`, stellar-cli >= 25.2) |
-| Testnet deployment / transaction hashes | **none** (no network or stellar-cli in the authoring sandbox) |
-| Security audit, Mainnet, real funds | **no** / **no** / **no** |
+[![CI](https://github.com/Torrent998/Torrent-contracts/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Torrent998/Torrent-contracts/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-42DEB4.svg)](./LICENSE)
+[![Network: Stellar Testnet](https://img.shields.io/badge/network-Stellar%20Testnet-00191C.svg)](#status)
+[![Status: prototype, unaudited](https://img.shields.io/badge/status-prototype%2C%20unaudited-A5F9DE.svg)](#status)
 
-All tests run against the real contract in the Soroban test host with a Stellar Asset Contract token and synthetic accounts. Nothing is mocked inside the contract.
+Part of **Torrent** — ownership of *when* money becomes available.
 
-## Public boundary (versioned)
-`bindings/abi.v1.json` (functions, auth, error codes), `bindings/events.v1.json` (event topics/data, shared with `torrent-indexer`), `bindings/scenario.v1.json` (synthetic script), `bindings/stream.v1.json` (the real events emitted by that script as base64 XDR; `torrent-indexer` decodes these exact bytes). ABI version 1. Design record: `docs/adr/0001-escrow-contract-design.md`.
+</div>
 
-Core invariant: `reserved <= funded - claimed - withdrawn` after every call; rights can only be issued against escrowed tokens; old owners cannot claim after a transfer; nothing is claimable before maturity or twice.
+## This repository
 
-## Local startup
+`torrent-escrow`, a single Soroban contract that holds the circle's money and enforces every financial rule:
+
+- **Pools and membership**: `create_pool` (bound to the circle's policy hash), `allow_member`, `join_pool`.
+- **Escrow**: `deposit`, `withdraw_unreserved` (only what no right reserves), `pause_pool` / `unpause_pool`.
+- **Payout rights**: `issue_right` only against unreserved escrow; one owner at a time.
+- **Transfers**: `propose_transfer` -> `accept_transfer` (both parties authorize; offers expire) or `cancel_transfer`.
+- **Claims**: `claim` by the current owner, after maturity, exactly once.
+
+The backing invariant `reserved <= funded - claimed - withdrawn` is asserted after every mutating call and checked
+by property tests over random sequences of deposits, issues, transfers, claims, withdrawals and pauses. Fee-on-transfer
+tokens are rejected. Every mutating call uses Soroban authorization and its unauthorized paths are tested.
+
+Public boundary, versioned (ABI v1): [`bindings/abi.v1.json`](./bindings/abi.v1.json) (functions, auth, errors),
+[`bindings/events.v1.json`](./bindings/events.v1.json) (event topics and data, consumed by Torrent-indexer),
+[`bindings/scenario.v1.json`](./bindings/scenario.v1.json) and [`bindings/stream.v1.json`](./bindings/stream.v1.json)
+(the real events emitted by that scenario, as base64 XDR).
+
+## Quickstart
+
+Requires Rust stable (1.85+).
+
 ```bash
+git clone https://github.com/Torrent998/Torrent-contracts && cd Torrent-contracts
 rustup target add wasm32v1-none
-./scripts/check.sh      # fmt, clippy -D warnings, tests, wasm smoke build
-cargo test --all        # tests only
+./scripts/check.sh            # fmt, clippy -D warnings, all tests, wasm compile smoke check
+./scripts/check-bindings.sh   # regenerates bindings/ from the real contract and fails on any drift
 ```
-Nothing to shut down (no services). Deployment steps: `deployments/README.md`.
 
-## Owns
-Escrow of backed assets, immutable fully-funded payout rights, transfer restrictions, schedule enforcement, claims, authorized amendments
+Nothing to shut down (no services). Deployment steps for stellar-cli are in
+[deployments/README.md](./deployments/README.md).
 
-## Why it is separate
-It has a distinct runtime/toolchain, external interface, tests, release cadence and maintainership boundary. Its siblings depend on its delivered interface, but implementation responsibilities must not be duplicated.
+## Status
 
-## Sibling repositories
-- `torrent-web` — Savings-circle dashboard, governance and identity UX, fully-funded payout inventory, swap/transfer requests, signing and reporting
-- `torrent-api` — Authenticated groups, enrollment, policy state, off-chain agreements, transaction intent orchestration, RBAC, compliance and notifications
-- `torrent-indexer` — Soroban event ingestion, canonical ledger-derived read models, reconciliation, replay/backfill, settlement status and event API
+| Area | State |
+|---|---|
+| `torrent-escrow` (pools, membership, deposit, issue, transfer, claim, withdraw-unreserved, pause) | implemented |
+| Tests: unit and failure paths, per-signer authorization, fee-on-transfer rejection, event golden, ABI surface, property tests (backing invariant, ownership model) | 36 passing in the Soroban test host with a Stellar Asset Contract token |
+| Bindings drift check (`scripts/check-bindings.sh`) | in CI |
+| Deployment scripts (`build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | written, **never run** |
+| Wasm compile smoke check (`wasm32v1-none`) | passes; not a deployable build (needs `stellar contract build`, stellar-cli >= 25.2) |
+| Testnet deployment / transaction hashes | **none yet** |
+| Security audit / Mainnet / real funds | **no** / **no** / **no** |
 
-## Architecture and development context
-Start with:
-- `AGENTS.md` — coding agent rules;
-- `docs/PRD.md` — product purpose and MVP;
-- `docs/SRD.md` — user/system requirements, APIs and state;
-- `docs/ARCHITECTURE.md` — four-repository responsibilities, data and execution paths;
-- `docs/TECHNICAL_BUILD.md` — recommended bootstrap, testing, phases;
-- `docs/SECURITY.md` — security/trust boundaries;
-- `docs/BRAND.md` — approved flat logo and flexible UI direction;
-- `docs/ROADMAP.md` — milestone acceptance gates.
+Design record: [docs/adr/0001-escrow-contract-design.md](./docs/adr/0001-escrow-contract-design.md).
 
-## Technical target
-Rust/Soroban. The actual product implementation starts at milestone M0; no real-money transactions or claims exist in this scaffold.
+## What is Torrent?
 
-## Minimal integration contract
-Always test the dependency path stated in ARCHITECTURE.md. Every new public endpoint/ABI/package message must be versioned and covered by consumer fixtures. See `docs/SRD.md` and `docs/TECHNICAL_BUILD.md`.
+In a savings circle, members contribute to a shared pot and take turns receiving it. Sometimes a member
+needs their payout earlier, or would happily take it later. **Torrent lets members exchange the timing of a
+payout, but only for payouts that are already fully funded.**
 
-## Drips Wave
-Stellar is essential: Soroban escrow contract takes custody of already-funded supported Stellar assets. Approval/eligibility for Wave depends on substantive open-source implementation and organizer review, not repo count.
+1. **Create a circle.** An organizer sets the rules; their hash binds the circle to an on-chain pool.
+2. **Fund the pool.** Members deposit a supported Stellar asset into a Soroban escrow contract.
+3. **Issue payout rights.** Each right has a unique id, owner, amount and maturity. The contract refuses to
+   issue a right that is not covered by unreserved escrow.
+4. **Transfer or claim.** The owner proposes, the recipient accepts, both sign. At maturity the current owner
+   claims exactly once.
 
+The contract enforces one invariant after every call: `reserved <= funded - claimed - withdrawn`.
+A payout right never represents a future contribution that has not been paid.
 
-## Official project identity
+## Architecture
 
-The project uses the **approved flat SVG logo** in [`brand/icon.svg`](./brand/icon.svg), with an editable transparent vector mark in [`brand/mark.svg`](./brand/mark.svg). The [512 px GitHub organization avatar](./brand/org-avatar.png) is in the same directory. This logo is shared by all four project repositories. UI design remains intentionally flexible.
+Torrent is four independently tested repositories, each owning one boundary. The contract is the only source of truth for backing, ownership and payout; the indexer reconstructs that truth from the ledger; the API organizes people and signing requests; the web app shows it honestly.
+
+```mermaid
+flowchart LR
+  U(["Member wallet"]) -.->|signs each call| W
+  W["<b>Torrent-web</b><br/>Next.js app"] -->|HTTPS, OpenAPI v1| A["<b>Torrent-api</b><br/>circles, invitations, signing requests"]
+  A -->|ledger read models| I["<b>Torrent-indexer</b><br/>ledger-derived state"]
+  A -->|user-signed transactions| C["<b>Torrent-contracts</b><br/>Soroban escrow on Stellar"]
+  C -->|contract events via RPC| I
+  classDef here fill:#42DEB4,stroke:#00191C,color:#00191C
+  class C here
+```
+
+| Repository | Stack | Owns |
+|---|---|---|
+| **[Torrent-contracts](https://github.com/Torrent998/Torrent-contracts)** (this repo) | Rust · Soroban SDK 29 | Escrow pools, fully backed payout rights, member-only transfers and one-time claims. The only writer of financial truth. |
+| [Torrent-indexer](https://github.com/Torrent998/Torrent-indexer) | TypeScript · Node 22 · Stellar RPC | Ingests contract events with a durable cursor and rebuilds pools, rights and transfers from the ledger. |
+| [Torrent-api](https://github.com/Torrent998/Torrent-api) | TypeScript · NestJS · SQLite | Circles, invitations, wallet sign-in and the signing-request state machine. Holds no keys and no balances. |
+| [Torrent-web](https://github.com/Torrent998/Torrent-web) | TypeScript · Next.js 16 · Tailwind CSS 4 | Landing page and web app: circles, coverage, rights, transfers, claims and signing requests. |
+
+## Project documents
+
+| Document | What it covers |
+|---|---|
+| [docs/PRD.md](./docs/PRD.md) | Product purpose, users, MVP and non-goals |
+| [docs/SRD.md](./docs/SRD.md) | Domain model, state machine, API surface |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | The four repositories and how data flows between them |
+| [docs/STELLAR_PROTOCOL.md](./docs/STELLAR_PROTOCOL.md) | Contract specification and invariants |
+| [docs/SECURITY.md](./docs/SECURITY.md) | Threat model and go-live restrictions |
+| [docs/ROADMAP.md](./docs/ROADMAP.md) | Milestones and quality gates |
+| [docs/BRAND.md](./docs/BRAND.md) | Approved logo and interface principles |
+| [docs/adr/](./docs/adr/) | Architecture decision records for this repository |
+| [AGENTS.md](./AGENTS.md) | Rules for AI coding agents working in this repository |
+
+The shared product documents are mirrored in all four repositories; the canonical copy lives in
+[Torrent-api](https://github.com/Torrent998/Torrent-api/tree/main/docs).
+
+## Contributing and Drips Wave
+
+Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md), then pick a scoped task from
+[docs/CONTRIBUTOR_ISSUES.md](./docs/CONTRIBUTOR_ISSUES.md). Each task names its motivation, the files it touches,
+acceptance tests and non-goals. Changes that cross a repository boundary go through the versioned fixtures
+each repo publishes, so every PR stays reviewable on its own.
+
+Torrent intends to apply to the [Drips Wave](https://docs.drips.network/wave/maintainers/participating-in-a-wave/)
+program for Stellar projects. Participation is subject to Drips' review; nothing here implies approval or rewards.
+Please follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## Security
+
+Torrent is an **unaudited prototype for Stellar Testnet**. Do not use it with real funds.
+Please report vulnerabilities privately as described in [SECURITY.md](./SECURITY.md); do not open public issues
+for them. The threat model is in [docs/SECURITY.md](./docs/SECURITY.md).
+
+## License
+
+[MIT](./LICENSE). The Torrent logo in [`brand/`](./brand/) is the project's approved identity and is shared by all four
+repositories; see [brand/README.md](./brand/README.md) for usage rules.
