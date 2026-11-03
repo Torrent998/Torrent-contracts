@@ -8,7 +8,7 @@ Sizes: small (a day or two), medium (up to a week), large (more, usually with an
 
 - **Motivation:** No Testnet deployment exists; siblings cannot run end to end.
 - **Touches:** `scripts/deploy-testnet.sh`, `scripts/smoke-testnet.sh`, `deployments/`
-- **Acceptance:** The contract is built with `stellar contract build`, deployed to Testnet, smoke-tested, and recorded in `deployments/testnet.json` with wasm hash, deploy transaction and ledger.
+- **Acceptance:** `scripts/deploy-testnet.sh` and `scripts/smoke-testnet.sh` (both complete, never run) succeed against Testnet; the resulting `deployments/testnet.json` (wasm hash, deploy transaction, ledger, admin) and `deployments/testnet-smoke.json` (one transaction hash per step) are committed; any script fixes are part of the PR.
 - **Size:** medium
 - **Non-goals:** Mainnet; real assets.
 
@@ -16,7 +16,7 @@ Sizes: small (a day or two), medium (up to a week), large (more, usually with an
 
 - **Motivation:** The rules are fixed after funding; the PRD requires amendments only with explicit member consent.
 - **Touches:** `contracts/escrow/src`, ADR
-- **Acceptance:** An ADR and an implementation where an amendment takes effect only after every member authorizes it; unauthorized and partial-consent paths are tested; ABI version bumped with new bindings.
+- **Acceptance:** An ADR and an implementation where an amendment (for example a new membership policy hash) takes effect only after every current member authorizes it; unauthorized, partial-consent and member-left-mid-vote paths are tested; ABI version bumped to 3 with new bindings and golden stream.
 - **Size:** large
 - **Non-goals:** Operator-only overrides.
 
@@ -24,7 +24,7 @@ Sizes: small (a day or two), medium (up to a week), large (more, usually with an
 
 - **Motivation:** Property tests cover sequences, not adversarial argument values.
 - **Touches:** new `fuzz/`
-- **Acceptance:** A cargo-fuzz target exercises entrypoints with arbitrary amounts, ids and addresses and asserts the backing invariant; documented how to run.
+- **Acceptance:** A cargo-fuzz target exercises every v2 entrypoint (including close, leave, rotation and upgrade calls) with arbitrary amounts, ids, timestamps and addresses and asserts the backing invariant and `open_rights` accounting; documented how to run.
 - **Size:** medium
 - **Non-goals:** CI-time fuzzing campaigns.
 
@@ -44,6 +44,14 @@ Sizes: small (a day or two), medium (up to a week), large (more, usually with an
 - **Size:** small
 - **Non-goals:** Changing the ABI.
 
+## 6. Spec-shaken build in CI
+
+- **Motivation:** CI publishes a plain-cargo wasm whose contract spec is not shaken; `stellar contract build` is the canonical artifact.
+- **Touches:** `.github/workflows/ci.yml`, `scripts/build.sh`
+- **Acceptance:** CI installs a pinned stellar-cli (>= 25.2, checksum-verified), runs `stellar contract build`, uploads that wasm, and the governance upgrade test runs against it.
+- **Size:** small
+- **Non-goals:** Deploying from CI.
+
 ## Already done
 
-Earlier items on this list (cross-repo schemas and golden fixtures, per-repo CI, the intent state machine and reconciliation, coverage-invariant and double-claim property tests, transfer authorization, and indexer replay/backfill) are implemented; see each repository's README status table.
+Earlier items on this list (cross-repo schemas and golden fixtures, per-repo CI, the intent state machine and reconciliation, coverage-invariant and double-claim property tests, transfer authorization, indexer replay/backfill, and in ABI v2: pool close, member removal and leaving, controller/admin rotation, a timelocked upgrade policy, transfer timing rules and a published release wasm) are implemented; see each repository's README status table.

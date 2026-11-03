@@ -17,22 +17,33 @@ Part of **Torrent** — ownership of *when* money becomes available.
 
 ## This repository
 
-`torrent-escrow`, a single Soroban contract that holds the circle's money and enforces every financial rule:
+`torrent-escrow`, a single Soroban contract that holds the circle's money and enforces every financial rule (ABI v2):
 
-- **Pools and membership**: `create_pool` (bound to the circle's policy hash), `allow_member`, `join_pool`.
-- **Escrow**: `deposit`, `withdraw_unreserved` (only what no right reserves), `pause_pool` / `unpause_pool`.
+- **Pools and membership**: `create_pool` (bound to the circle's policy hash), `allow_member` / `remove_member`
+  (controller, only before the first deposit), `join_pool` (member signs the policy hash), `leave_pool`
+  (member's own signature, refused while they own an unclaimed right).
+- **Escrow**: `deposit`, `withdraw_unreserved` (only what no right reserves), `pause_pool` / `unpause_pool`,
+  `close_pool` (terminal: nothing new enters; claims and leftover withdrawals keep working).
 - **Payout rights**: `issue_right` only against unreserved escrow; one owner at a time.
-- **Transfers**: `propose_transfer` -> `accept_transfer` (both parties authorize; offers expire) or `cancel_transfer`.
+- **Transfers**: `propose_transfer` -> `accept_transfer` (both parties authorize) or `cancel_transfer`. Only
+  before maturity, and an offer may not outlive the right's maturity.
 - **Claims**: `claim` by the current owner, after maturity, exactly once.
+- **Keys and upgrades**: two-step `propose_controller` / `accept_controller` per pool and `propose_admin` /
+  `accept_admin` for the contract. The admin can only manage upgrades: `propose_upgrade` announces a wasm
+  hash on-chain with a **7-day timelock**, then `execute_upgrade`, `cancel_upgrade` or `lock_upgrades`
+  (freezes the code forever). The admin has no power over any pool, right or token.
+- **Getters**: `get_pool`, `get_totals`, `get_unreserved`, `get_right`, `get_transfer`, `get_member`,
+  `is_member`, `get_pending_controller`, `get_governance`, `get_counts`, `abi_version`.
 
 The backing invariant `reserved <= funded - claimed - withdrawn` is asserted after every mutating call and checked
-by property tests over random sequences of deposits, issues, transfers, claims, withdrawals and pauses. Fee-on-transfer
-tokens are rejected. Every mutating call uses Soroban authorization and its unauthorized paths are tested.
+by property tests over random sequences of deposits, issues, transfers, claims, withdrawals, pauses, closes,
+removals and departures. Fee-on-transfer tokens are rejected. Every mutating call uses Soroban authorization and
+its unauthorized paths are tested. Every state change emits an event.
 
-Public boundary, versioned (ABI v1): [`bindings/abi.v1.json`](./bindings/abi.v1.json) (functions, auth, errors),
-[`bindings/events.v1.json`](./bindings/events.v1.json) (event topics and data, consumed by Torrent-indexer),
-[`bindings/scenario.v1.json`](./bindings/scenario.v1.json) and [`bindings/stream.v1.json`](./bindings/stream.v1.json)
-(the real events emitted by that scenario, as base64 XDR).
+Public boundary, versioned (ABI v2): [`bindings/abi.v2.json`](./bindings/abi.v2.json) (functions, auth, errors,
+upgrade policy), [`bindings/events.v2.json`](./bindings/events.v2.json) (event topics and data, consumed by
+Torrent-indexer), [`bindings/scenario.v2.json`](./bindings/scenario.v2.json) and
+[`bindings/stream.v2.json`](./bindings/stream.v2.json) (the real events emitted by that scenario, as base64 XDR).
 
 ## Quickstart
 
@@ -41,26 +52,29 @@ Requires Rust stable (1.85+).
 ```bash
 git clone https://github.com/Torrent998/Torrent-contracts && cd Torrent-contracts
 rustup target add wasm32v1-none
-./scripts/check.sh            # fmt, clippy -D warnings, all tests, wasm compile smoke check
+./scripts/check.sh            # fmt, clippy -D warnings, release wasm, all tests (incl. upgrade to that wasm)
 ./scripts/check-bindings.sh   # regenerates bindings/ from the real contract and fails on any drift
 ```
 
-Nothing to shut down (no services). Deployment steps for stellar-cli are in
-[deployments/README.md](./deployments/README.md).
+Nothing to shut down (no services). The release wasm lands in `target/wasm32v1-none/release/torrent_escrow.wasm`;
+CI publishes it with its sha256 as the `torrent_escrow-wasm-<sha>` artifact. Testnet deployment and smoke steps are
+in [deployments/README.md](./deployments/README.md).
 
 ## Status
 
 | Area | State |
 |---|---|
-| `torrent-escrow` (pools, membership, deposit, issue, transfer, claim, withdraw-unreserved, pause) | implemented |
-| Tests: unit and failure paths, per-signer authorization, fee-on-transfer rejection, event golden, ABI surface, property tests (backing invariant, ownership model) | 36 passing in the Soroban test host with a Stellar Asset Contract token |
+| `torrent-escrow` ABI v2: pools, membership (allow, join, remove before funding, leave), deposit, issue, transfer with timing rules, claim, withdraw-unreserved, pause, close, controller/admin rotation, timelocked upgrades and upgrade lock | implemented |
+| Tests: unit and failure paths, per-signer authorization (controller, member, admin, successor), fee-on-transfer rejection, replay, event golden, ABI surface, property tests (backing invariant, ownership model, `open_rights` accounting, timing rules), upgrade to the real release wasm | 57 passing in the Soroban test host with a Stellar Asset Contract token |
 | Bindings drift check (`scripts/check-bindings.sh`) | in CI |
-| Deployment scripts (`build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | written, **never run** |
-| Wasm compile smoke check (`wasm32v1-none`) | passes; not a deployable build (needs `stellar contract build`, stellar-cli >= 25.2) |
+| Release wasm (`cargo build --release --target wasm32v1-none`) | built in CI and published as an artifact with its sha256; executes in the Soroban host (the governance test upgrades to it). The contract spec is not shaken by plain cargo; `stellar contract build` (stellar-cli >= 25.2) gives the canonical artifact |
+| Deployment scripts (`build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | complete, **never run** (no Testnet access from the authoring environment) |
 | Testnet deployment / transaction hashes | **none yet** |
+| Consent-based rule amendments | **not yet** |
 | Security audit / Mainnet / real funds | **no** / **no** / **no** |
 
-Design record: [docs/adr/0001-escrow-contract-design.md](./docs/adr/0001-escrow-contract-design.md).
+Design records: [ADR 0001](./docs/adr/0001-escrow-contract-design.md) (escrow design) and
+[ADR 0002](./docs/adr/0002-abi-v2-lifecycle-and-governance.md) (ABI v2 lifecycle, timing rules, upgrade policy).
 
 ## What is Torrent?
 

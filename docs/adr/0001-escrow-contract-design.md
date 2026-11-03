@@ -1,6 +1,6 @@
 # ADR 0001 — Single escrow contract, multi-pool, fail-closed accounting
 
-Status: accepted (M1). Sources: `docs/STELLAR_PROTOCOL.md` (contract spec), `docs/SRD.md`, `docs/TECHNICAL_BUILD.md`. Where the master index and a specific doc differ, the specific doc wins; `torrent-api` holds the canonical docs copy.
+Status: accepted (M1); extended by [ADR 0002](./0002-abi-v2-lifecycle-and-governance.md) (ABI v2). Sources: `docs/STELLAR_PROTOCOL.md` (contract spec), `docs/SRD.md`, `docs/TECHNICAL_BUILD.md`. Where the master index and a specific doc differ, the specific doc wins; `torrent-api` holds the canonical docs copy.
 
 ## Decisions
 1. One contract (`torrent-escrow`) hosts many pools keyed by `pool_id: u64`. Rights and transfers use global monotonic `u64` ids (opaque to clients).
@@ -11,8 +11,8 @@ Status: accepted (M1). Sources: `docs/STELLAR_PROTOCOL.md` (contract spec), `doc
 6. `Nonce(address, seq)` from the spec is **not** implemented: Soroban's built-in authorization binds signatures to the invocation and ledger-bounded nonces, and our single-use transfer ids provide application-level replay protection. Revisit if off-chain signed approvals are introduced.
 7. Pause blocks deposit/issue/transfer/withdraw and membership changes; **claims always work** (no confiscation).
 8. `withdraw_unreserved` lets the controller recover only value not backing any issued right.
-9. Every event carries `network_id` (sha256 of the passphrase). Schema in `bindings/events.v1.json`.
+9. Every event carries `network_id` (sha256 of the passphrase). Schema in `bindings/events.v2.json` (v1 at the time of this ADR).
 
 ## Not done / known limits
 - Not audited. Testnet/synthetic only. No Testnet transaction hashes exist yet (no network/stellar-cli in the authoring sandbox).
-- Single token per pool; no amendment/upgrade flow; no per-pool transfer-policy enforcement beyond storing `transfer_policy_hash` on the right (the hash is opaque data for the API/web).
+- Single token per pool; no amendment flow (upgrade policy: ADR 0002); no per-pool transfer-policy enforcement beyond storing `transfer_policy_hash` on the right (the hash is opaque data for the API/web).
