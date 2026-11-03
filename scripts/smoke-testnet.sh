@@ -1,15 +1,83 @@
 #!/usr/bin/env bash
-# Manual smoke sequence against a deployed contract (TESTNET, synthetic funds). Documented, never executed by the authors.
-# Requires: CONTRACT_ID, TOKEN_ID (a Stellar Asset Contract you control), and funded aliases controller/alice.
+# End-to-end smoke run against a deployed torrent-escrow on TESTNET with synthetic funds.
+#
+# STATUS: complete but NEVER EXECUTED by the authors (no Testnet access from the authoring
+# sandbox). It records every transaction hash it sees in deployments/testnet-smoke.json.
+#
+# Requirements: stellar-cli >= 25.2.0, jq, deployments/testnet.json from deploy-testnet.sh.
+# The pool token is the Testnet native-XLM Stellar Asset Contract, so friendbot-funded identities
+# can take part with no custom asset. Amounts are stroops (1 XLM = 10_000_000).
+#
+#   ./scripts/smoke-testnet.sh            # creates/funds identities torrent-{controller,alice,bob}
+#
+# What it proves on a real network: create_pool, allow/join, deposit, issue_right (backed),
+# propose/accept transfer (two signatures), timing rules, claim at maturity, double-claim refused,
+# leave_pool, controller rotation, close_pool, withdraw_unreserved of leftovers.
 set -euo pipefail
-: "${CONTRACT_ID:?}" "${TOKEN_ID:?}"
+cd "$(dirname "$0")/.."
+for bin in stellar jq; do command -v "$bin" >/dev/null || { echo "missing: $bin" >&2; exit 1; }; done
+[ -f deployments/testnet.json ] || { echo "run scripts/deploy-testnet.sh first" >&2; exit 1; }
+CONTRACT_ID="${CONTRACT_ID:-$(jq -r .contractId deployments/testnet.json)}"
+NETWORK=testnet
+OUT=deployments/testnet-smoke.json
+TOKEN_ID="${TOKEN_ID:-$(stellar contract id asset --asset native --network "$NETWORK")}"
 POLICY=$(printf '07%.0s' $(seq 1 32))
-inv() { stellar contract invoke --id "$CONTRACT_ID" --network testnet --source-account "$1" -- "${@:2}"; }
-CONTROLLER=$(stellar keys address controller); ALICE=$(stellar keys address alice)
-POOL=$(inv controller create_pool --controller "$CONTROLLER" --token "$TOKEN_ID" --membership_policy_hash "$POLICY" | tr -d '"')
-inv controller allow_member --pool_id "$POOL" --member "$ALICE"
-inv alice join_pool --pool_id "$POOL" --member "$ALICE" --signed_policy_hash "$POLICY"
-inv controller deposit --pool_id "$POOL" --from "$CONTROLLER" --amount 1000
-inv controller issue_right --pool_id "$POOL" --owner "$ALICE" --amount 600 --maturity "$(( $(date +%s) + 120 ))" --policy_hash "$POLICY"
-inv controller get_totals --pool_id "$POOL"
-echo "Record the transaction hashes printed above in deployments/testnet.json (txs)."
+STEPS='[]'
+
+ident() { # alias -> address, generating and friendbot-funding it on first use
+  stellar keys address "$1" 2>/dev/null || { stellar keys generate --fund "$1" --network "$NETWORK" >/dev/null; stellar keys address "$1"; }
+}
+inv() { # inv <signer-alias> <step-name> <fn> [args...]; prints the return value
+  local who=$1 step=$2; shift 2
+  local err; err=$(mktemp)
+  local out; out=$(stellar contract invoke --id "$CONTRACT_ID" --network "$NETWORK" --source-account "$who" -- "$@" 2>"$err") \
+    || { cat "$err" >&2; rm -f "$err"; echo "step $step FAILED" >&2; exit 1; }
+  local tx; tx=$(grep -oE '\b[0-9a-f]{64}\b' "$err" | tail -1 || true); rm -f "$err"
+  STEPS=$(jq -c --arg s "$step" --arg tx "$tx" --arg out "$out" '. + [{step: $s, tx: (if $tx == "" then null else $tx end), result: $out}]' <<<"$STEPS")
+  printf '%s' "$out"
+}
+expect_fail() { # expect_fail <signer-alias> <step-name> <expected Error name or code> <fn> [args...]
+  local who=$1 step=$2 want=$3; shift 3
+  local log; log=$(stellar contract invoke --id "$CONTRACT_ID" --network "$NETWORK" --source-account "$who" --send=no -- "$@" 2>&1) \
+    && { echo "step $step unexpectedly succeeded" >&2; exit 1; }
+  grep -q "$want" <<<"$log" || { echo "step $step failed for another reason:" >&2; echo "$log" >&2; exit 1; }
+  STEPS=$(jq -c --arg s "$step" --arg w "$want" '. + [{step: $s, refused: $w}]' <<<"$STEPS")
+}
+now() { date +%s; }
+
+CONTROLLER=$(ident torrent-controller); ALICE=$(ident torrent-alice); BOB=$(ident torrent-bob)
+[ "$(inv torrent-controller abi_version abi_version)" = "2" ] || { echo "contract is not ABI v2" >&2; exit 1; }
+
+POOL=$(inv torrent-controller create_pool create_pool --controller "$CONTROLLER" --token "$TOKEN_ID" --membership_policy_hash "$POLICY" | tr -d '"')
+for m in alice bob; do
+  addr=$(stellar keys address "torrent-$m")
+  inv torrent-controller "allow_$m" allow_member --pool_id "$POOL" --member "$addr" >/dev/null
+  inv "torrent-$m" "join_$m" join_pool --pool_id "$POOL" --member "$addr" --signed_policy_hash "$POLICY" >/dev/null
+done
+inv torrent-controller deposit deposit --pool_id "$POOL" --from "$CONTROLLER" --amount 10000000 >/dev/null
+MATURITY=$(( $(now) + 180 ))
+expect_fail torrent-controller issue_unbacked InsufficientBacking issue_right --pool_id "$POOL" --owner "$ALICE" --amount 10000001 --maturity "$MATURITY" --policy_hash "$POLICY"
+RIGHT=$(inv torrent-controller issue_right issue_right --pool_id "$POOL" --owner "$ALICE" --amount 6000000 --maturity "$MATURITY" --policy_hash "$POLICY" | tr -d '"')
+expect_fail torrent-alice offer_beyond_maturity InvalidExpiry propose_transfer --right_id "$RIGHT" --new_owner "$BOB" --expiry $(( MATURITY + 1 ))
+T=$(inv torrent-alice propose_transfer propose_transfer --right_id "$RIGHT" --new_owner "$BOB" --expiry $(( $(now) + 120 )) | tr -d '"')
+inv torrent-bob accept_transfer accept_transfer --transfer_id "$T" >/dev/null
+expect_fail torrent-bob accept_replay TransferNotPending accept_transfer --transfer_id "$T"
+expect_fail torrent-bob claim_early NotMatured claim --right_id "$RIGHT" --recipient "$BOB"
+expect_fail torrent-bob leave_while_owning MemberHasRights leave_pool --pool_id "$POOL" --member "$BOB"
+echo "waiting for maturity ($(( MATURITY - $(now) ))s)"; while [ "$(now)" -lt $(( MATURITY + 10 )) ]; do sleep 5; done
+inv torrent-bob claim claim --right_id "$RIGHT" --recipient "$BOB" >/dev/null
+expect_fail torrent-bob double_claim AlreadyClaimed claim --right_id "$RIGHT" --recipient "$BOB"
+inv torrent-bob leave_bob leave_pool --pool_id "$POOL" --member "$BOB" >/dev/null
+inv torrent-controller propose_controller propose_controller --pool_id "$POOL" --proposed "$ALICE" >/dev/null
+inv torrent-alice accept_controller accept_controller --pool_id "$POOL" >/dev/null
+inv torrent-alice close_pool close_pool --pool_id "$POOL" >/dev/null
+expect_fail torrent-alice deposit_after_close PoolClosed deposit --pool_id "$POOL" --from "$ALICE" --amount 1
+inv torrent-alice withdraw_leftover withdraw_unreserved --pool_id "$POOL" --to "$CONTROLLER" --amount 4000000 >/dev/null
+TOTALS=$(inv torrent-alice get_totals get_totals --pool_id "$POOL")
+echo "final totals: $TOTALS"
+jq -e '.reserved == "0" and .claimed == "6000000" and .withdrawn == "4000000"' <<<"$TOTALS" >/dev/null \
+  || { echo "unexpected final totals" >&2; exit 1; }
+
+jq -n --arg c "$CONTRACT_ID" --arg pool "$POOL" --arg token "$TOKEN_ID" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --argjson steps "$STEPS" '{network: "testnet", contractId: $c, token: $token, poolId: $pool, ranAt: $at, steps: $steps}' > "$OUT"
+echo "smoke run passed; transaction hashes recorded in $OUT (commit it)"

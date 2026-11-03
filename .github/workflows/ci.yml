@@ -12,9 +12,34 @@ jobs:
           components: rustfmt, clippy
           targets: wasm32v1-none
       - uses: Swatinem/rust-cache@v2
-      - run: ./scripts/check.sh
+      - name: fmt, clippy, release wasm, all tests (incl. upgrade to the real wasm)
+        run: ./scripts/check.sh
       - name: ABI / event / golden-stream docs are in sync with the contract
         run: ./scripts/check-bindings.sh
+  wasm:
+    # Publishes the release wasm built from this commit with its sha256. Testnet deployment
+    # (scripts/deploy-testnet.sh) is a manual step; nothing here touches a network.
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+      - uses: Swatinem/rust-cache@v2
+      - run: ./scripts/build-wasm.sh | tee wasm-build.txt
+      - name: Record checksum
+        run: |
+          cd target/wasm32v1-none/release
+          sha256sum torrent_escrow.wasm > torrent_escrow.wasm.sha256
+          cat torrent_escrow.wasm.sha256 >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: torrent_escrow-wasm-${{ github.sha }}
+          path: |
+            target/wasm32v1-none/release/torrent_escrow.wasm
+            target/wasm32v1-none/release/torrent_escrow.wasm.sha256
+          if-no-files-found: error
   audit:
     runs-on: ubuntu-latest
     steps:
