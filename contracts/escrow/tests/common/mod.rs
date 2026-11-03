@@ -18,6 +18,7 @@ pub struct Fixture<'a> {
     pub escrow_addr: Address,
     pub token: TokenClient<'a>,
     pub token_admin: StellarAssetClient<'a>,
+    pub admin: Address,
     pub controller: Address,
     pub alice: Address,
     pub bob: Address,
@@ -57,7 +58,8 @@ fn build<'a>(with_pool: bool) -> Fixture<'a> {
     let sac = env.register_stellar_asset_contract_v2(sac_admin);
     let token = TokenClient::new(&env, &sac.address());
     let token_admin = StellarAssetClient::new(&env, &sac.address());
-    let escrow_addr = env.register(TorrentEscrow, ());
+    let admin = Address::generate(&env);
+    let escrow_addr = env.register(TorrentEscrow, (admin.clone(),));
     let escrow = TorrentEscrowClient::new(&env, &escrow_addr);
     let controller = Address::generate(&env);
     let [alice, bob, carol, outsider] = core::array::from_fn(|_| Address::generate(&env));
@@ -79,6 +81,7 @@ fn build<'a>(with_pool: bool) -> Fixture<'a> {
         escrow_addr,
         token,
         token_admin,
+        admin,
         controller,
         alice,
         bob,

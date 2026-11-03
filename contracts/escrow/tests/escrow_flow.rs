@@ -214,7 +214,8 @@ fn issuance_and_pause_require_controller_auth() {
 fn no_auth_means_no_state_change() {
     // Fresh env WITHOUT mock_all_auths: every mutating call must be refused by the host.
     let env = Env::default();
-    let id = env.register(torrent_escrow::TorrentEscrow, ());
+    let admin = Address::generate(&env);
+    let id = env.register(torrent_escrow::TorrentEscrow, (admin,));
     let c = torrent_escrow::TorrentEscrowClient::new(&env, &id);
     let who = Address::generate(&env);
     let h = hash(&env, 1);
@@ -299,7 +300,7 @@ fn claiming_voids_pending_transfer() {
     let f = setup();
     f.fund(100);
     let r = f.issue(&f.alice, 100, 1);
-    let t = f.escrow.propose_transfer(&r, &f.bob, &(START + 10 * DAY));
+    let t = f.escrow.propose_transfer(&r, &f.bob, &(START + DAY));
     f.advance(DAY);
     f.escrow.claim(&r, &f.alice);
     assert_eq!(f.escrow.get_transfer(&t).status, TransferStatus::Cancelled);
@@ -471,7 +472,7 @@ fn pools_are_isolated() {
 }
 
 #[test]
-fn abi_version_is_1() {
+fn abi_version_is_2() {
     let f = setup();
-    assert_eq!(f.escrow.abi_version(), 1);
+    assert_eq!(f.escrow.abi_version(), 2);
 }

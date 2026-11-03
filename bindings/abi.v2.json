@@ -1,0 +1,376 @@
+{
+  "schema": "torrent.contract-abi",
+  "abiVersion": 2,
+  "contract": "torrent-escrow",
+  "sdk": "soroban-sdk 29.0.1",
+  "status": "Hand-maintained mirror of the #[contractimpl]; verified by tests/abi_surface.rs. Not generated from a deployed wasm. v1 was never deployed.",
+  "functions": [
+    {
+      "name": "__constructor",
+      "args": {
+        "admin": "address"
+      },
+      "returns": "void",
+      "auth": "none (runs once at deploy)",
+      "notes": "Sets the contract admin (upgrade governance only; no power over pools)"
+    },
+    {
+      "name": "abi_version",
+      "args": {},
+      "returns": "u32",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "create_pool",
+      "args": {
+        "controller": "address",
+        "token": "address",
+        "membership_policy_hash": "bytes32"
+      },
+      "returns": "u64 pool_id",
+      "auth": "controller",
+      "notes": "Pool starts Active"
+    },
+    {
+      "name": "allow_member",
+      "args": {
+        "pool_id": "u64",
+        "member": "address"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Only before first deposit (MembershipFrozen after)"
+    },
+    {
+      "name": "join_pool",
+      "args": {
+        "pool_id": "u64",
+        "member": "address",
+        "signed_policy_hash": "bytes32"
+      },
+      "returns": "void",
+      "auth": "member",
+      "notes": "Hash must equal pool membership_policy_hash"
+    },
+    {
+      "name": "deposit",
+      "args": {
+        "pool_id": "u64",
+        "from": "address",
+        "amount": "i128"
+      },
+      "returns": "u64 receipt_id",
+      "auth": "from",
+      "notes": "from = controller or joined member; fails closed if token moves a different amount"
+    },
+    {
+      "name": "issue_right",
+      "args": {
+        "pool_id": "u64",
+        "owner": "address",
+        "amount": "i128",
+        "maturity": "u64 (unix seconds)",
+        "policy_hash": "bytes32"
+      },
+      "returns": "u64 right_id",
+      "auth": "controller",
+      "notes": "Rejects if reserved would exceed funded-claimed-withdrawn"
+    },
+    {
+      "name": "propose_transfer",
+      "args": {
+        "right_id": "u64",
+        "new_owner": "address",
+        "expiry": "u64"
+      },
+      "returns": "u64 transfer_id",
+      "auth": "current owner",
+      "notes": "One open proposal per right; refused once the right has matured (RightMatured); expiry must be > now and <= maturity; replacing an expired proposal emits transfer_cancelled for it"
+    },
+    {
+      "name": "cancel_transfer",
+      "args": {
+        "transfer_id": "u64"
+      },
+      "returns": "void",
+      "auth": "proposer (from)",
+      "notes": ""
+    },
+    {
+      "name": "accept_transfer",
+      "args": {
+        "transfer_id": "u64"
+      },
+      "returns": "void",
+      "auth": "recipient (to)",
+      "notes": "Single use; rejects expired/stale/matured; moves open_rights between the two members"
+    },
+    {
+      "name": "claim",
+      "args": {
+        "right_id": "u64",
+        "recipient": "address"
+      },
+      "returns": "void (token transfer)",
+      "auth": "current owner",
+      "notes": "At/after maturity, exactly once; allowed while paused or closed; voids an open proposal (emits transfer_cancelled first)"
+    },
+    {
+      "name": "withdraw_unreserved",
+      "args": {
+        "pool_id": "u64",
+        "to": "address",
+        "amount": "i128"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Only value not reserved by any issued right; allowed while Active or Closed, not Paused"
+    },
+    {
+      "name": "pause_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Blocks deposit/issue/transfer/withdraw/membership changes; never claims. PoolClosed on a closed pool"
+    },
+    {
+      "name": "unpause_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": ""
+    },
+    {
+      "name": "close_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Terminal. From Active or Paused. Blocks deposits, members, issuance and transfers; claims, cancellations, leaving and unreserved withdrawals remain"
+    },
+    {
+      "name": "remove_member",
+      "args": {
+        "pool_id": "u64",
+        "member": "address"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Only before first deposit (MembershipFrozen after); clears allow-list entry and membership"
+    },
+    {
+      "name": "leave_pool",
+      "args": {
+        "pool_id": "u64",
+        "member": "address"
+      },
+      "returns": "void",
+      "auth": "member",
+      "notes": "Refused while the member owns an unclaimed right (MemberHasRights); sets eligible=false"
+    },
+    {
+      "name": "propose_controller",
+      "args": {
+        "pool_id": "u64",
+        "proposed": "address"
+      },
+      "returns": "void",
+      "auth": "controller",
+      "notes": "Step 1 of rotation; replaces any earlier proposal"
+    },
+    {
+      "name": "accept_controller",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "void",
+      "auth": "proposed controller",
+      "notes": "Step 2 of rotation"
+    },
+    {
+      "name": "propose_admin",
+      "args": {
+        "proposed": "address"
+      },
+      "returns": "void",
+      "auth": "admin",
+      "notes": "Step 1 of admin rotation"
+    },
+    {
+      "name": "accept_admin",
+      "args": {},
+      "returns": "void",
+      "auth": "proposed admin",
+      "notes": "Step 2 of admin rotation"
+    },
+    {
+      "name": "propose_upgrade",
+      "args": {
+        "wasm_hash": "bytes32"
+      },
+      "returns": "u64 executable_after",
+      "auth": "admin",
+      "notes": "Timelock UPGRADE_DELAY_SECS = 604800; one pending at a time; refused after lock_upgrades"
+    },
+    {
+      "name": "cancel_upgrade",
+      "args": {},
+      "returns": "void",
+      "auth": "admin",
+      "notes": ""
+    },
+    {
+      "name": "execute_upgrade",
+      "args": {},
+      "returns": "void",
+      "auth": "admin",
+      "notes": "Only at/after executable_after; storage preserved; emits contract_upgraded"
+    },
+    {
+      "name": "lock_upgrades",
+      "args": {},
+      "returns": "void",
+      "auth": "admin",
+      "notes": "Irreversible; cancels a pending upgrade"
+    },
+    {
+      "name": "get_pool",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "PoolConfig",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_totals",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "EscrowTotals {funded,reserved,claimed,withdrawn}",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_unreserved",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "i128",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_right",
+      "args": {
+        "right_id": "u64"
+      },
+      "returns": "PayoutRight",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_transfer",
+      "args": {
+        "transfer_id": "u64"
+      },
+      "returns": "TransferApproval",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "is_member",
+      "args": {
+        "pool_id": "u64",
+        "who": "address"
+      },
+      "returns": "bool",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_member",
+      "args": {
+        "pool_id": "u64",
+        "who": "address"
+      },
+      "returns": "Member {pool_id,address,eligible,joined_at,signed_policy_hash,open_rights}",
+      "auth": "none",
+      "notes": "NotMember if never joined (or removed)"
+    },
+    {
+      "name": "get_pending_controller",
+      "args": {
+        "pool_id": "u64"
+      },
+      "returns": "Option<address>",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_governance",
+      "args": {},
+      "returns": "Governance {admin,pending_admin,pending_upgrade,upgrade_executable_after,upgrades_locked,upgrade_delay_secs}",
+      "auth": "none",
+      "notes": ""
+    },
+    {
+      "name": "get_counts",
+      "args": {},
+      "returns": "Counts {pools,rights,transfers}",
+      "auth": "none",
+      "notes": "Highest ids issued so far"
+    }
+  ],
+  "errors": {
+    "1": "PoolNotFound",
+    "2": "RightNotFound",
+    "3": "TransferNotFound",
+    "4": "NotAllowed",
+    "5": "NotMember",
+    "6": "AlreadyMember",
+    "7": "PolicyMismatch",
+    "8": "InvalidAmount",
+    "9": "PoolPaused",
+    "10": "InsufficientBacking",
+    "11": "MaturityInPast",
+    "12": "NotMatured",
+    "13": "AlreadyClaimed",
+    "14": "RightNotActive",
+    "15": "SameOwner",
+    "16": "InvalidExpiry",
+    "17": "TransferPending",
+    "18": "TransferNotPending",
+    "19": "TransferExpired",
+    "20": "StaleTransfer",
+    "21": "NotFunded",
+    "22": "Overflow",
+    "23": "DepositMismatch",
+    "24": "MembershipFrozen",
+    "25": "AlreadyPaused",
+    "26": "NotPaused",
+    "27": "PoolClosed",
+    "28": "AlreadyClosed",
+    "29": "MemberHasRights",
+    "30": "NoPendingController",
+    "31": "RightMatured",
+    "32": "NoPendingAdmin",
+    "33": "UpgradePending",
+    "34": "NoPendingUpgrade",
+    "35": "UpgradeNotReady",
+    "36": "UpgradesLocked"
+  },
+  "invariant": "reserved >= 0 and reserved <= funded - claimed - withdrawn after every call",
+  "poolStatus": [
+    "Active",
+    "Paused",
+    "Closed"
+  ],
+  "upgradePolicy": "Admin-only, two-step admin rotation, 7-day timelock announced on-chain (upgrade_proposed), cancellable, permanently lockable (lock_upgrades). The admin has no authority over pools, rights or tokens."
+}

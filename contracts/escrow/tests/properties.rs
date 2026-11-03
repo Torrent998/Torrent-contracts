@@ -18,6 +18,9 @@ enum Op {
     Advance { secs: u64 },
     Pause,
     Unpause,
+    Close,
+    Leave { who: usize },
+    Remove { who: usize },
 }
 
 fn op() -> impl Strategy<Value = Op> {
@@ -32,6 +35,9 @@ fn op() -> impl Strategy<Value = Op> {
         3 => (0u64..8 * 86_400).prop_map(|secs| Op::Advance { secs }),
         1 => Just(Op::Pause),
         1 => Just(Op::Unpause),
+        1 => Just(Op::Close),
+        1 => (0usize..3).prop_map(|who| Op::Leave { who }),
+        1 => (0usize..3).prop_map(|who| Op::Remove { who }),
     ]
 }
 
@@ -71,6 +77,9 @@ proptest! {
                         let id = (right as u64 % n_rights) + 1;
                         if let Ok(Ok(_)) = f.escrow.try_propose_transfer(&id, &members[to % 3], &(now + ttl)) {
                             n_transfers += 1;
+                            // timing rule: only unmatured rights are offered, never beyond maturity
+                            let r = f.escrow.get_right(&id);
+                            prop_assert!(now < r.maturity && now + ttl <= r.maturity);
                         }
                     }
                 }
@@ -108,6 +117,23 @@ proptest! {
                 Op::Advance { secs } => f.advance(secs),
                 Op::Pause => { let _ = f.escrow.try_pause_pool(&f.pool_id); }
                 Op::Unpause => { let _ = f.escrow.try_unpause_pool(&f.pool_id); }
+                Op::Close => { let _ = f.escrow.try_close_pool(&f.pool_id); }
+                Op::Leave { who } => {
+                    let m = &members[who];
+                    let had_rights = f.escrow.try_get_member(&f.pool_id, m)
+                        .ok().and_then(|r| r.ok()).map(|m| m.open_rights > 0);
+                    let res = f.escrow.try_leave_pool(&f.pool_id, m);
+                    // leaving succeeds only for a current member who owns no unclaimed right
+                    if matches!(res, Ok(Ok(_))) {
+                        prop_assert_eq!(had_rights, Some(false));
+                    }
+                }
+                Op::Remove { who } => {
+                    let res = f.escrow.try_remove_member(&f.pool_id, &members[who]);
+                    if matches!(res, Ok(Ok(_))) {
+                        prop_assert_eq!(f.escrow.get_totals(&f.pool_id).funded, 0, "removed after funding");
+                    }
+                }
             }
 
             // ---- invariants ----
@@ -128,6 +154,20 @@ proptest! {
             }
             prop_assert_eq!(open, t.reserved);
             prop_assert_eq!(paid, t.claimed);
+            // every member's open_rights counter equals the unclaimed rights they own, and
+            // every unclaimed right is owned by a current member
+            for m in &members {
+                let owned = (1..=n_rights)
+                    .map(|id| f.escrow.get_right(&id))
+                    .filter(|r| r.state == RightState::Issued && &r.owner == m)
+                    .count() as u32;
+                let counter = f.escrow.try_get_member(&f.pool_id, m)
+                    .ok().and_then(|r| r.ok()).map(|m| m.open_rights).unwrap_or(0);
+                prop_assert_eq!(owned, counter, "open_rights drifted");
+                if owned > 0 {
+                    prop_assert!(f.escrow.is_member(&f.pool_id, m));
+                }
+            }
             // conservation of synthetic supply
             let sum: i128 = actors.iter().map(|a| f.token.balance(a)).sum::<i128>()
                 + f.token.balance(&f.escrow_addr);
@@ -178,13 +218,13 @@ proptest! {
             let now = f.env.ledger().timestamp();
             match o {
                 OwnOp::Issue { to, amount } => {
-                    if let Ok(Ok(_)) = f.escrow.try_issue_right(&f.pool_id, &members[to], &amount, &(now + 86_400), &hash(&f.env, 1)) {
+                    if let Ok(Ok(_)) = f.escrow.try_issue_right(&f.pool_id, &members[to], &amount, &(now + 4 * 86_400), &hash(&f.env, 1)) {
                         owners.push(members[to].clone());
                     }
                 }
                 OwnOp::Propose { right, to } if !owners.is_empty() => {
                     let id = (right % owners.len()) as u64 + 1;
-                    if let Ok(Ok(_)) = f.escrow.try_propose_transfer(&id, &members[to], &(now + 3 * 86_400)) {
+                    if let Ok(Ok(_)) = f.escrow.try_propose_transfer(&id, &members[to], &(now + 86_400)) {
                         transfers.push((id, members[to].clone()));
                     }
                 }

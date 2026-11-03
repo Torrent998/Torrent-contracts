@@ -1,8 +1,12 @@
-//! Public on-chain types (ABI v1). See `bindings/abi.v1.json`.
+//! Public on-chain types (ABI v2). See `bindings/abi.v2.json`.
 use soroban_sdk::{contracterror, contracttype, Address, BytesN};
 
 /// Version of the public ABI / event schema implemented by this contract.
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
+
+/// Minimum delay between `propose_upgrade` and `execute_upgrade` (7 days, ledger time). Gives
+/// members a disclosed window to see the new wasm hash before it can take effect.
+pub const UPGRADE_DELAY_SECS: u64 = 7 * 86_400;
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -37,6 +41,22 @@ pub enum Error {
     MembershipFrozen = 24,
     AlreadyPaused = 25,
     NotPaused = 26,
+    /// Pool was closed by its controller; only claims, cancellations, leaving and
+    /// withdrawals of unreserved value remain possible.
+    PoolClosed = 27,
+    AlreadyClosed = 28,
+    /// A member who still owns unclaimed rights cannot leave.
+    MemberHasRights = 29,
+    NoPendingController = 30,
+    /// The right has matured: it can be claimed, no longer traded.
+    RightMatured = 31,
+    NoPendingAdmin = 32,
+    UpgradePending = 33,
+    NoPendingUpgrade = 34,
+    /// The upgrade timelock (`UPGRADE_DELAY_SECS`) has not elapsed.
+    UpgradeNotReady = 35,
+    /// `lock_upgrades` was called; the code can never change again.
+    UpgradesLocked = 36,
 }
 
 #[contracttype]
@@ -44,6 +64,8 @@ pub enum Error {
 pub enum PoolStatus {
     Active,
     Paused,
+    /// Terminal. No new funding, members, rights or transfers; claims always work.
+    Closed,
 }
 
 #[contracttype]
@@ -79,6 +101,8 @@ pub struct Member {
     pub eligible: bool,
     pub joined_at: u64,
     pub signed_policy_hash: BytesN<32>,
+    /// Number of unclaimed rights this member currently owns in the pool.
+    pub open_rights: u32,
 }
 
 #[contracttype]
@@ -121,6 +145,39 @@ pub struct TransferApproval {
     pub status: TransferStatus,
 }
 
+/// A proposed code upgrade, executable by the admin once `executable_after` has passed.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingUpgrade {
+    pub wasm_hash: BytesN<32>,
+    pub proposed_at: u64,
+    pub executable_after: u64,
+}
+
+/// Contract-level governance. The admin has no power over pools, rights or funds: it can only
+/// rotate itself (two-step), propose/cancel/execute a timelocked upgrade, or lock upgrades forever.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Governance {
+    pub admin: Address,
+    pub pending_admin: Option<Address>,
+    /// Wasm hash of the pending upgrade, if any.
+    pub pending_upgrade: Option<BytesN<32>>,
+    /// Earliest ledger time the pending upgrade can execute (0 when none is pending).
+    pub upgrade_executable_after: u64,
+    pub upgrades_locked: bool,
+    pub upgrade_delay_secs: u64,
+}
+
+/// Monotonic id counters (the highest id handed out so far; 0 = none).
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Counts {
+    pub pools: u64,
+    pub rights: u64,
+    pub transfers: u64,
+}
+
 #[contracttype]
 #[derive(Clone)]
 pub(crate) enum DataKey {
@@ -134,4 +191,9 @@ pub(crate) enum DataKey {
     Member(u64, Address),
     Right(u64),
     Transfer(u64),
+    PendingController(u64),
+    Admin,
+    PendingAdmin,
+    PendingUpgrade,
+    UpgradesLocked,
 }

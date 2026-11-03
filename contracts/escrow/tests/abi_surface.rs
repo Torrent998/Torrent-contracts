@@ -1,4 +1,4 @@
-//! Keeps `bindings/abi.v1.json` honest: every function and error code in the file must exist in
+//! Keeps `bindings/abi.v2.json` honest: every function and error code in the file must exist in
 //! the contract source, and vice versa.
 fn read(p: &str) -> String {
     std::fs::read_to_string(format!("{}/{p}", env!("CARGO_MANIFEST_DIR"))).unwrap()
@@ -6,7 +6,7 @@ fn read(p: &str) -> String {
 
 #[test]
 fn abi_file_matches_source() {
-    let abi = read("../../bindings/abi.v1.json");
+    let abi = read("../../bindings/abi.v2.json");
     let src = read("src/lib.rs");
     let impl_part = &src[src.find("#[contractimpl]").unwrap()..];
     let mut fns: Vec<String> = impl_part
@@ -31,7 +31,7 @@ fn abi_file_matches_source() {
         })
         .count();
     assert!(
-        variants == 26,
+        variants == 36,
         "error enum changed: update ABI file ({variants})"
     );
 }
