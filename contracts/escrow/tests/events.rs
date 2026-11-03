@@ -344,12 +344,14 @@ fn stream_golden_matches_real_emitted_events() {
     let t_totals = to_b64(f.escrow.get_totals(&1).into_val(&f.env));
     let t_r1 = to_b64(f.escrow.get_right(&1).into_val(&f.env));
     let t_r2 = to_b64(f.escrow.get_right(&2).into_val(&f.env));
+    let t_totals2 = to_b64(f.escrow.get_totals(&2).into_val(&f.env));
+    let t_r3 = to_b64(f.escrow.get_right(&3).into_val(&f.env));
     let t_pool = to_b64(f.escrow.get_pool(&1).into_val(&f.env));
     let t_member = to_b64(f.escrow.get_member(&1, &f.alice).into_val(&f.env));
     let t_gov = to_b64(f.escrow.get_governance().into_val(&f.env));
     let t_counts = to_b64(f.escrow.get_counts().into_val(&f.env));
     let views = format!(
-        "{{ \"get_totals(1)\": \"{t_totals}\", \"get_right(1)\": \"{t_r1}\", \"get_right(2)\": \"{t_r2}\", \"get_pool(1)\": \"{t_pool}\", \"get_member(1,alice)\": \"{t_member}\", \"get_governance()\": \"{t_gov}\", \"get_counts()\": \"{t_counts}\" }}"
+        "{{ \"get_totals(1)\": \"{t_totals}\", \"get_right(1)\": \"{t_r1}\", \"get_right(2)\": \"{t_r2}\", \"get_totals(2)\": \"{t_totals2}\", \"get_right(3)\": \"{t_r3}\", \"get_pool(1)\": \"{t_pool}\", \"get_member(1,alice)\": \"{t_member}\", \"get_governance()\": \"{t_gov}\", \"get_counts()\": \"{t_counts}\" }}"
     );
     let doc = format!(
         "{{\n  \"schema\": \"torrent.event-stream\",\n  \"abiVersion\": 2,\n  \"networkPassphrase\": \"{PASSPHRASE}\",\n  \"contractId\": \"{}\",\n  \"note\": \"Real events emitted by torrent-escrow in the Soroban test host with synthetic accounts. NOT from Testnet.\",\n  \"views\": {},\n  \"events\": [\n{}\n  ]\n}}\n",
