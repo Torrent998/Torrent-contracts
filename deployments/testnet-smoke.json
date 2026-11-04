@@ -1,0 +1,104 @@
+{
+  "network": "testnet",
+  "contractId": "CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG",
+  "token": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+  "poolId": "8",
+  "ranAt": "2026-11-04T16:55:39Z",
+  "steps": [
+    {
+      "step": "allow_alice",
+      "tx": "db13e59bc5535c6a39331ddca1a13e1a893777ceb268e5db00a2f2bb7b0244f5",
+      "result": "null"
+    },
+    {
+      "step": "join_alice",
+      "tx": "0e7eb5cfef996d3ea935a9cffd69fe9db84558da7ec3c6b4f2138c92613daf62",
+      "result": "null"
+    },
+    {
+      "step": "allow_bob",
+      "tx": "a4236747bafa4c2697cc69d16ed3c8c05d95a303b4facd410aa830a42e7e814b",
+      "result": "null"
+    },
+    {
+      "step": "join_bob",
+      "tx": "ed503a60b03e9d91f920b75c0f85724aec5a7fd3c4408201f7f1a96d4bb004b0",
+      "result": "null"
+    },
+    {
+      "step": "deposit",
+      "tx": "5198d1687d4adf73c9b4a57fcfc94b975753392fe0f45bea7b0fbb89a7f43c6c",
+      "result": "1"
+    },
+    {
+      "step": "issue_unbacked",
+      "refused": "InsufficientBacking",
+      "errorCode": 10
+    },
+    {
+      "step": "offer_beyond_maturity",
+      "refused": "InvalidExpiry",
+      "errorCode": 16
+    },
+    {
+      "step": "accept_transfer",
+      "tx": "cc55f49797c281273fdf1d788b2022799ceb93f376ff53d856141b500060a1ba",
+      "result": "null"
+    },
+    {
+      "step": "accept_replay",
+      "refused": "TransferNotPending",
+      "errorCode": 18
+    },
+    {
+      "step": "claim_early",
+      "refused": "NotMatured",
+      "errorCode": 12
+    },
+    {
+      "step": "leave_while_owning",
+      "refused": "MemberHasRights",
+      "errorCode": 29
+    },
+    {
+      "step": "claim",
+      "tx": "d00b4665072131b1eeb193bf0cdd819121de66a68bfb269586c05e961e8e15af",
+      "result": "null"
+    },
+    {
+      "step": "double_claim",
+      "refused": "AlreadyClaimed",
+      "errorCode": 13
+    },
+    {
+      "step": "leave_bob",
+      "tx": "2298f0e919952163b1d749fa7191424bd74e83819a13fb6a8cdd13de6ed3d303",
+      "result": "null"
+    },
+    {
+      "step": "propose_controller",
+      "tx": "76c38ba9c6af2cdf20230d25dc3d53764317de991739b1cc3cc285792de8337a",
+      "result": "null"
+    },
+    {
+      "step": "accept_controller",
+      "tx": "e3807cc87198bf7f9ebd23ccf8efbbfa4fec6e10da24c20d108b86817a1739a3",
+      "result": "null"
+    },
+    {
+      "step": "close_pool",
+      "tx": "f7b754dafac53ac588d04f6630fd74c58b3fc8901bb66c672503d44e30b91d50",
+      "result": "null"
+    },
+    {
+      "step": "deposit_after_close",
+      "refused": "PoolClosed",
+      "errorCode": 27
+    },
+    {
+      "step": "withdraw_leftover",
+      "tx": "e3240d58628cfe3960277b6863fa05987bf85ebe16abd1ff9fac7d4fa45b112f",
+      "result": "null"
+    }
+  ]
+}

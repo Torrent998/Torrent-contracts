@@ -1,0 +1,40 @@
+{
+  "network": "testnet",
+  "contract": "CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG",
+  "steps": [
+    {
+      "name": "organizer logs in by signing the wallet challenge (SEP-53)",
+      "ok": true
+    },
+    {
+      "name": "circle created (off-chain agreement + policy hash)",
+      "ok": true,
+      "detail": "policyHash 649602eae552961d2c4832695b57d77fef9c2dfbe62f05d8c41463bc9d2dded1"
+    },
+    {
+      "name": "organizer creates the on-chain pool with the circle policy hash (stellar-cli)",
+      "ok": true,
+      "detail": "pool 9"
+    },
+    {
+      "name": "API binds the circle to the pool from indexed pool_created (by policy hash)",
+      "ok": true,
+      "detail": "poolId 9"
+    },
+    {
+      "name": "deposit intent signed with a real prepared Soroban tx and submitted through the API",
+      "ok": true,
+      "txHash": "a2fcbb564bdb776389c0290e56e1e703ba719cc93c5794a4e99f1d57b75144e8",
+      "detail": "state SUBMITTED"
+    },
+    {
+      "name": "intent CONFIRMED after the indexer ingested the funded event for that tx hash",
+      "ok": true,
+      "txHash": "a2fcbb564bdb776389c0290e56e1e703ba719cc93c5794a4e99f1d57b75144e8"
+    },
+    {
+      "name": "coverage endpoint shows funded 2500000 (ledger-derived)",
+      "ok": true
+    }
+  ]
+}

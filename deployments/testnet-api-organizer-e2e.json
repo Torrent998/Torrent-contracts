@@ -1,0 +1,44 @@
+{
+  "network": "testnet",
+  "contract": "CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG",
+  "steps": [
+    {
+      "name": "create_pool: API signing request -> real prepared tx -> CONFIRMED by the indexed event",
+      "ok": true,
+      "txHash": "68ae86c526ee6927b215e28640c4e533accd9a5a3e784d452842520e7529ae30"
+    },
+    {
+      "name": "circle bound to the pool created through the API",
+      "ok": true,
+      "detail": "poolId 10"
+    },
+    {
+      "name": "member allowed and joined on-chain (stellar-cli; the API has no join request)",
+      "ok": true
+    },
+    {
+      "name": "deposit: API signing request -> real prepared tx -> CONFIRMED by the indexed event",
+      "ok": true,
+      "txHash": "b1e5dd5f7972e6e50de47cc1a6fb6e0277da4e7df4aac49eeb10cebf244978f8"
+    },
+    {
+      "name": "unbacked issue_right is refused by the API before signing (INSUFFICIENT_BACKING)",
+      "ok": true
+    },
+    {
+      "name": "issue_right: API signing request -> real prepared tx -> CONFIRMED by the indexed event",
+      "ok": true,
+      "txHash": "14db7add74079b76531caa3588ae93a1b60cfc1bf2922b5896d342b1fcae4fb9"
+    },
+    {
+      "name": "close_pool: API signing request -> real prepared tx -> CONFIRMED by the indexed event",
+      "ok": true,
+      "txHash": "44df9338f0dd965130f66f1549faf0b5f58ea3661ba4eb23b2a0184a50cd4a90"
+    },
+    {
+      "name": "coverage after the organizer flow",
+      "ok": true,
+      "detail": "{\"funded\":\"3000000\",\"reserved\":\"2000000\",\"claimed\":\"0\",\"withdrawn\":\"0\"}"
+    }
+  ]
+}

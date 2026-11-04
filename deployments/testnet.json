@@ -1,0 +1,14 @@
+{
+  "network": "testnet",
+  "networkPassphrase": "Test SDF Network ; September 2015",
+  "contractId": "CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG",
+  "wasmHash": "9dd206c4b7e4f673dd6006da9c45efe3d8b0ad5e1155d8e3b957f855f330f264",
+  "wasmSha256": "9dd206c4b7e4f673dd6006da9c45efe3d8b0ad5e1155d8e3b957f855f330f264",
+  "abiVersion": 2,
+  "admin": "GAE3F3TYRELLL34IM2N74QG3PXWZUYDMCKBTPDWPN7ZNHBVTXWNC7ZNT",
+  "gitSha": "68c20f4fe041d8f00ef2112080235a9840841c55",
+  "deployTx": "653b9c6d026720e5c8f389e0347b21a7d369706f19baf9313f0a4947c4b2ac0f",
+  "deployLedger": 5553711,
+  "stellarCli": "stellar 27.1.0 (8e402ea28202950b272fbabc34caad4d2f64fe87)",
+  "deployedAt": "2026-11-04T11:35:20Z"
+}

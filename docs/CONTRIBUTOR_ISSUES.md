@@ -4,7 +4,7 @@ Scoped tasks for contributors, including Drips Wave participants. Each one is re
 
 Sizes: small (a day or two), medium (up to a week), large (more, usually with an ADR).
 
-## 1. First Testnet deployment
+## 1. First Testnet deployment (DONE 2026-11-04, see docs/DEPLOYMENT.md)
 
 - **Motivation:** No Testnet deployment exists; siblings cannot run end to end.
 - **Touches:** `scripts/deploy-testnet.sh`, `scripts/smoke-testnet.sh`, `deployments/`

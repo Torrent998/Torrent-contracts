@@ -1,7 +1,6 @@
 # Deployments
 
-**No deployments exist.** Everything so far was proven inside the Soroban test host (see the README status).
-No file in this folder other than this README is real until someone runs the scripts below and commits their output.
+One Testnet deployment exists (2026-11-04); `testnet.json` and `testnet-smoke.json` are the real output of the scripts below. Details and links: [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md). `testnet-api-e2e.json` and `testnet-api-organizer-e2e.json` are evidence from the API's live runs.
 
 | File | Written by | Holds |
 |---|---|---|

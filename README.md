@@ -68,8 +68,8 @@ in [deployments/README.md](./deployments/README.md).
 | Tests: unit and failure paths, per-signer authorization (controller, member, admin, successor), fee-on-transfer rejection, replay, event golden, ABI surface, property tests (backing invariant, ownership model, `open_rights` accounting, timing rules), upgrade to the real release wasm | 57 passing in the Soroban test host with a Stellar Asset Contract token |
 | Bindings drift check (`scripts/check-bindings.sh`) | in CI |
 | Release wasm (`cargo build --release --target wasm32v1-none`) | built in CI and published as an artifact with its sha256; executes in the Soroban host (the governance test upgrades to it). The contract spec is not shaken by plain cargo; `stellar contract build` (stellar-cli >= 25.2) gives the canonical artifact |
-| Deployment scripts (`build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | complete, **never run** (no Testnet access from the authoring environment) |
-| Testnet deployment / transaction hashes | **none yet** |
+| Deployment scripts (`build.sh`, `deploy-testnet.sh`, `smoke-testnet.sh`) | run for real on 2026-11-04 (first run exposed and fixed four script bugs, see docs/DEPLOYMENT.md) |
+| Testnet deployment / transaction hashes | **deployed**: [`CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG`](https://stellar.expert/explorer/testnet/contract/CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG), ABI v2, smoke lifecycle passed with 12 verified transactions (Testnet only, no audit) |
 | Consent-based rule amendments | **not yet** |
 | Security audit / Mainnet / real funds | **no** / **no** / **no** |
 
