@@ -364,7 +364,9 @@ fn stream_golden_matches_real_emitted_events() {
     if std::env::var("UPDATE_GOLDEN").is_ok() {
         std::fs::write(path, &doc).unwrap();
     }
-    let on_disk = std::fs::read_to_string(path).expect("run with UPDATE_GOLDEN=1 once");
+    let on_disk = std::fs::read_to_string(path)
+        .expect("run with UPDATE_GOLDEN=1 once")
+        .replace("\r\n", "\n");
     assert_eq!(
         on_disk, doc,
         "bindings/stream.v2.json is stale; regenerate with UPDATE_GOLDEN=1"
