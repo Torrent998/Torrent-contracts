@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Deploys torrent-escrow (ABI v2) to Stellar TESTNET ONLY and records deployments/testnet.json.
 #
-# STATUS: complete but NEVER EXECUTED by the authors (the authoring sandbox has no route to
-# Testnet). Nothing in deployments/ is real until someone runs this and commits the output.
+# STATUS: run for real on 2026-11-04 (see docs/DEPLOYMENT.md); deployments/testnet.json is its output.
 #
 # Requirements: stellar-cli >= 25.2.0, curl, jq, a funded Testnet identity in your local keystore.
 # No secret is read from or written to this repository: stellar-cli signs with a key ALIAS.

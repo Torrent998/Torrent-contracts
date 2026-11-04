@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end smoke run against a deployed torrent-escrow on TESTNET with synthetic funds.
 #
-# STATUS: complete but NEVER EXECUTED by the authors (no Testnet access from the authoring
-# sandbox). It records every transaction hash it sees in deployments/testnet-smoke.json.
+# STATUS: run for real on 2026-11-04 (see docs/DEPLOYMENT.md); first run exposed four script bugs, now fixed.
 #
 # Requirements: stellar-cli >= 25.2.0, jq, deployments/testnet.json from deploy-testnet.sh.
 # The pool token is the Testnet native-XLM Stellar Asset Contract, so friendbot-funded identities
@@ -30,9 +29,16 @@ ident() { # alias -> address, generating and friendbot-funding it on first use
 inv() { # inv <signer-alias> <step-name> <fn> [args...]; prints the return value
   local who=$1 step=$2; shift 2
   local err; err=$(mktemp)
-  local out; out=$(stellar contract invoke --id "$CONTRACT_ID" --network "$NETWORK" --source-account "$who" -- "$@" 2>"$err") \
-    || { cat "$err" >&2; rm -f "$err"; echo "step $step FAILED" >&2; exit 1; }
-  local tx; tx=$(grep -oE '\b[0-9a-f]{64}\b' "$err" | tail -1 || true); rm -f "$err"
+  local out attempt=1
+  # Retry only transport-level failures (RPC unreachable / connection dropped); contract refusals are never retried.
+  until out=$(stellar contract invoke --id "$CONTRACT_ID" --network "$NETWORK" --source-account "$who" -- "$@" 2>"$err"); do
+    if [ "$attempt" -lt 4 ] && grep -qE 'client error \((Connect|SendRequest)\)|timed out|Too Many Requests' "$err"; then
+      attempt=$((attempt + 1)); sleep 3; continue
+    fi
+    cat "$err" >&2; rm -f "$err"; echo "step $step FAILED" >&2; exit 1
+  done
+  # The hash comes from the explorer link stellar-cli prints (.../tx/<hash>); a bare 64-hex match also catches unrelated ids.
+  local tx; tx=$(grep -oE '/tx/[0-9a-f]{64}' "$err" | tail -1 | cut -d/ -f3 || true); rm -f "$err"
   STEPS=$(jq -c --arg s "$step" --arg tx "$tx" --arg out "$out" '. + [{step: $s, tx: (if $tx == "" then null else $tx end), result: $out}]' <<<"$STEPS")
   printf '%s' "$out"
 }
@@ -40,8 +46,13 @@ expect_fail() { # expect_fail <signer-alias> <step-name> <expected Error name or
   local who=$1 step=$2 want=$3; shift 3
   local log; log=$(stellar contract invoke --id "$CONTRACT_ID" --network "$NETWORK" --source-account "$who" --send=no -- "$@" 2>&1) \
     && { echo "step $step unexpectedly succeeded" >&2; exit 1; }
-  grep -q "$want" <<<"$log" || { echo "step $step failed for another reason:" >&2; echo "$log" >&2; exit 1; }
-  STEPS=$(jq -c --arg s "$step" --arg w "$want" '. + [{step: $s, refused: $w}]' <<<"$STEPS")
+  # stellar-cli prints contract errors as Error(Contract, #N); resolve names through the contract's own enum.
+  local code=""
+  if [[ "$want" =~ ^[0-9]+$ ]]; then code=$want; else
+    code=$(sed -nE "s/^[[:space:]]*${want}[[:space:]]*=[[:space:]]*([0-9]+),.*/\1/p" contracts/escrow/src/types.rs | head -1)
+  fi
+  grep -qE "$want|Error\(Contract, #${code:-__none__}\)" <<<"$log" || { echo "step $step failed for another reason (wanted $want, code '${code}'):" >&2; echo "$log" >&2; exit 1; }
+  STEPS=$(jq -c --arg s "$step" --arg w "$want" --arg c "$code" '. + [{step: $s, refused: $w, errorCode: (if $c == "" then null else ($c|tonumber) end)}]' <<<"$STEPS")
 }
 now() { date +%s; }
 
@@ -55,11 +66,12 @@ for m in alice bob; do
   inv "torrent-$m" "join_$m" join_pool --pool_id "$POOL" --member "$addr" --signed_policy_hash "$POLICY" >/dev/null
 done
 inv torrent-controller deposit deposit --pool_id "$POOL" --from "$CONTROLLER" --amount 10000000 >/dev/null
-MATURITY=$(( $(now) + 180 ))
+# Generous windows: on a slow link each Testnet call can take 20-40 s, and the offer must land before the right matures.
+MATURITY=$(( $(now) + ${SMOKE_MATURITY_SECS:-420} ))
 expect_fail torrent-controller issue_unbacked InsufficientBacking issue_right --pool_id "$POOL" --owner "$ALICE" --amount 10000001 --maturity "$MATURITY" --policy_hash "$POLICY"
 RIGHT=$(inv torrent-controller issue_right issue_right --pool_id "$POOL" --owner "$ALICE" --amount 6000000 --maturity "$MATURITY" --policy_hash "$POLICY" | tr -d '"')
 expect_fail torrent-alice offer_beyond_maturity InvalidExpiry propose_transfer --right_id "$RIGHT" --new_owner "$BOB" --expiry $(( MATURITY + 1 ))
-T=$(inv torrent-alice propose_transfer propose_transfer --right_id "$RIGHT" --new_owner "$BOB" --expiry $(( $(now) + 120 )) | tr -d '"')
+T=$(inv torrent-alice propose_transfer propose_transfer --right_id "$RIGHT" --new_owner "$BOB" --expiry "$MATURITY" | tr -d '"')
 inv torrent-bob accept_transfer accept_transfer --transfer_id "$T" >/dev/null
 expect_fail torrent-bob accept_replay TransferNotPending accept_transfer --transfer_id "$T"
 expect_fail torrent-bob claim_early NotMatured claim --right_id "$RIGHT" --recipient "$BOB"
