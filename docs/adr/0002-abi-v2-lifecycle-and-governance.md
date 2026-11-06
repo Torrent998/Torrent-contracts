@@ -4,7 +4,7 @@ Status: accepted. Supersedes the "Not done" list of ADR 0001 where noted. v1 was
 so v2 replaces it outright (bindings moved to `bindings/*.v2.json`).
 
 ## Context
-An audit of `torrent-escrow` v1 against `docs/STELLAR_PROTOCOL.md` and `docs/SRD.md` found these
+An audit of `torrent-escrow` v1 against `docs/STELLAR_PROTOCOL.md` and the product notes in the git history found these
 gaps: no way to finish a pool, no way to correct membership before funding or to leave after it,
 no rotation of the controller key, no upgrade policy, transfer offers that could outlive the right
 they offer, and two silent transfer status changes the indexer had to infer.
@@ -50,5 +50,5 @@ they offer, and two silent transfer status changes the indexer had to infer.
 - `scripts/check.sh` builds the release wasm before the tests; CI publishes it as an artifact.
 
 ## Not done
-- Consent-based rule amendments (every member signs) remain open; see `docs/CONTRIBUTOR_ISSUES.md`.
+- Consent-based rule amendments (every member signs) remain open; see the product notes in the git history.
 - No Testnet deployment; no audit.

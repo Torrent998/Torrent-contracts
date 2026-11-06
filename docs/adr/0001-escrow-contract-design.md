@@ -1,6 +1,6 @@
 # ADR 0001 — Single escrow contract, multi-pool, fail-closed accounting
 
-Status: accepted (M1); extended by [ADR 0002](./0002-abi-v2-lifecycle-and-governance.md) (ABI v2). Sources: `docs/STELLAR_PROTOCOL.md` (contract spec), `docs/SRD.md`, `docs/TECHNICAL_BUILD.md`. Where the master index and a specific doc differ, the specific doc wins; `torrent-api` holds the canonical docs copy.
+Status: accepted (M1); extended by [ADR 0002](./0002-abi-v2-lifecycle-and-governance.md) (ABI v2). Sources: `docs/STELLAR_PROTOCOL.md` (contract spec), the product notes in the git history, the product notes in the git history. Where the master index and a specific doc differ, the specific doc wins; `torrent-api` holds the canonical docs copy.
 
 ## Decisions
 1. One contract (`torrent-escrow`) hosts many pools keyed by `pool_id: u64`. Rights and transfers use global monotonic `u64` ids (opaque to clients).
@@ -14,5 +14,5 @@ Status: accepted (M1); extended by [ADR 0002](./0002-abi-v2-lifecycle-and-govern
 9. Every event carries `network_id` (sha256 of the passphrase). Schema in `bindings/events.v2.json` (v1 at the time of this ADR).
 
 ## Not done / known limits
-- Not audited. Testnet/synthetic only. No Testnet transaction hashes exist yet (no network/stellar-cli in the authoring sandbox).
+- Not audited. Testnet/synthetic only. The Testnet deployment and smoke run are recorded in `deployments/` and in the README status table.
 - Single token per pool; no amendment flow (upgrade policy: ADR 0002); no per-pool transfer-policy enforcement beyond storing `transfer_policy_hash` on the right (the hash is opaque data for the API/web).

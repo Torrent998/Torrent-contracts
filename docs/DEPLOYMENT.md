@@ -3,7 +3,7 @@
 ## Environment boundaries
 - Local: deterministic Docker Compose services, Stellar local network/Testnet, synthetic users/fixtures.
 - Staging: separate database, bucket, API credentials, signing identities, Testnet assets/contracts, observability.
-- Production: requires security audit, real issuer/provider agreements and relevant jurisdictional legal/compliance review. Not included in preimplementation scaffold.
+- Production: requires security audit, real issuer/provider agreements and relevant jurisdictional legal/compliance review. Not included in this Testnet prototype.
 
 ## Suggested variables (non-secret examples only)
 ```dotenv
@@ -51,7 +51,7 @@ No audit has been done. Nothing here is a Mainnet statement.
 **Reproducible build.** `stellar contract build` on this checkout gives the same sha256 as the deployed wasm
 (`9dd206c4b7e4f673dd6006da9c45efe3d8b0ad5e1155d8e3b957f855f330f264`). The CI artifact is built with plain `cargo` (`scripts/build-wasm.sh`, spec not shaken) and has a
 different sha256 (`6768a12e4127a9c1c9344a259378ebc99becb365dd29b12d0c564b324263d3f7` when built here). The deployed
-artifact is the `stellar contract build` one. Moving CI to a pinned stellar-cli is listed in `docs/CONTRIBUTOR_ISSUES.md`.
+artifact is the `stellar contract build` one. Moving CI to a pinned stellar-cli is listed in the product notes in the git history.
 
 ### Smoke run (`scripts/smoke-testnet.sh`, pool 8, token = native XLM Stellar Asset Contract `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`)
 
