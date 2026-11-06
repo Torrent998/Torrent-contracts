@@ -6,7 +6,7 @@ real use.
 
 ## Supported versions
 
-Only the latest commit on `main` is supported. There are no releases yet.
+Only the latest commit on `main` and the latest tagged release are supported. `v0.1.0` is a Testnet prototype.
 
 ## Reporting a vulnerability
 

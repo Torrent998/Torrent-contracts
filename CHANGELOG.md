@@ -1,5 +1,7 @@
 # Changelog
-## Unreleased
+## 0.1.0 - 2026-11-06 (Testnet prototype)
+- **Deployed to Stellar Testnet** (`CBWF73FUJDGXSXOYUVYHP3XAFSPZWX65YGFSXDSSF5VRFLEWFFTQUIJG`, ledger 5553711). The smoke lifecycle ran for real and its transaction hashes and expected refusals are recorded in `deployments/`. The first real run exposed and fixed four script bugs (error names versus codes, transient network errors, timing windows, hash extraction).
+- Golden-file comparison is line-ending safe on Windows checkouts. Repository documentation rewritten for public review; internal planning notes removed; `docs.yml` now checks required files and relative links.
 - **ABI v2** (breaking; v1 was never deployed): `close_pool`, `remove_member` (before funding), `leave_pool`
   (refused while owning unclaimed rights; `Member.open_rights`), two-step controller and admin rotation,
   admin-only upgrades with a 7-day on-chain timelock plus `cancel_upgrade` and `lock_upgrades`, a constructor
@@ -9,7 +11,7 @@
 - Bindings moved to `bindings/*.v2.json`; the golden stream records every v2 event except `contract_upgraded`.
 - Tests: 57 (new lifecycle and governance suites, including an upgrade to the real release wasm; property tests
   extended with close/leave/remove and `open_rights` accounting).
-- CI publishes the release wasm with its sha256. `deploy-testnet.sh` and `smoke-testnet.sh` are complete (not run).
-- README overhaul, security policy, code of conduct, issue forms, Dependabot and repo-specific contributor tasks.
+- CI publishes the release wasm with its sha256. `deploy-testnet.sh` and `smoke-testnet.sh` are complete and were run against Testnet.
+- README overhaul, security policy, code of conduct, issue forms and Dependabot.
 - M0: ABI v1, event schema v1, synthetic scenario, ADR 0001.
 - M1: `torrent-escrow` Soroban contract with unit, failure-path, event-golden and property tests.
