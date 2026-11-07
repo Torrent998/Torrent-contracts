@@ -149,7 +149,6 @@ The threat model is in [docs/SECURITY.md](./docs/SECURITY.md).
 ## Community
 
 Questions and design discussion: [GitHub Discussions](https://github.com/Torrent998/Torrent-contracts/discussions).
-<!-- TODO(owner): add the Telegram or Discord invite link here -->
 
 ## Maintainers
 
