@@ -16,6 +16,13 @@ jobs:
         run: ./scripts/check.sh
       - name: ABI / event / golden-stream docs are in sync with the contract
         run: ./scripts/check-bindings.sh
+  shellcheck:
+    # Lints the Testnet bash scripts so the next quoting or flag mistake fails fast.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint scripts/*.sh with the preinstalled shellcheck
+        run: shellcheck scripts/*.sh
   wasm:
     # Publishes the release wasm built from this commit with its sha256. Testnet deployment
     # (scripts/deploy-testnet.sh) is a manual step; nothing here touches a network.
